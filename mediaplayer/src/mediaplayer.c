@@ -48,6 +48,7 @@ int main(int argc, char *argv[]) {
 
 	if (optind < argc) {
 		filename = argv[optind];
+		logger_printf("\ninput file: %s\n\n", filename);
 	} else {
 		logger_printf("Missing filename param!\n");
 		goto end;
