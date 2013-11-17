@@ -22,25 +22,37 @@
 #ifndef TYPEDEFS_H
 #define TYPEDEFS_H
 
-#define SIZE_OF_ARRAY(a) ((int)(sizeof(a) / sizeof(a[0])))
+typedef unsigned char		U8;
+typedef signed char			S8;
 
-typedef int			STATUS;
-#define S_OK		1
-#define S_FAIL		0
+typedef unsigned short		U16;
+typedef signed short		S16;
 
-typedef int			bool;
-#define true		1
-#define false		0
+typedef unsigned int		U32;
+typedef signed int			S32;
+
+typedef unsigned long long	U64;
+typedef signed long long	S64;
+
+typedef int					STATUS;
+#define S_OK				1
+#define S_FAIL				0
+
+typedef int					bool;
+#define true				1
+#define false				0
 
 #undef NULL
-#define NULL		((void *)0)
+#define NULL				((void *)0)
 
 #ifndef MIN
-#define MIN(a, b)	((a) < (b) ? (a) : (b))
+#define MIN(a, b)			((a) < (b) ? (a) : (b))
 #endif
 
 #ifndef MAX
-#define MAX(a, b)	((a) > (b) ? (a) : (b))
+#define MAX(a, b)			((a) > (b) ? (a) : (b))
 #endif
+
+#define SIZE_OF_ARRAY(a) 	((int)(sizeof(a) / sizeof(a[0])))
 
 #endif

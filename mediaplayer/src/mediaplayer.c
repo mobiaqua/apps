@@ -32,10 +32,10 @@ static display_t *display = NULL;
 int main(int argc, char *argv[]) {
 	int option;
 	char *filename;
-	unsigned char *fb;
-	unsigned char *fb_src[480];
-	int fb_stride[480];
-	int y;
+	U8 *fb;
+	U8 *fb_src[480];
+	U32 fb_stride[480];
+	U32 y;
 
 	logger_init();
 

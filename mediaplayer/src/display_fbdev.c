@@ -83,8 +83,8 @@ static bool fbdev_init() {
 	device.fb_stride = device.finfo.line_length;
 	device.fb_width = device.vinfo.xres;
 	device.fb_height = device.vinfo.yres;
-	device.fb_ptr = (unsigned char *)mmap(0, device.fb_size, PROT_READ | PROT_WRITE, MAP_SHARED, device.fd, 0);
-	if (device.fb_ptr == (unsigned char *)-1) {
+	device.fb_ptr = (U8 *)mmap(0, device.fb_size, PROT_READ | PROT_WRITE, MAP_SHARED, device.fd, 0);
+	if (device.fb_ptr == (U8 *)-1) {
 		logger_printf("fbdev_init(): Failed get frame buffer! %s\n", strerror(errno));
 		goto fail;
 	}
@@ -134,7 +134,7 @@ void display_fbdev_deinit() {
 	fbdev_deinit();
 }
 
-bool display_fbdev_configure(int width, int height) {
+bool display_fbdev_configure(U32 width, U32 height) {
 	if (width <= 0 || height <= 0) {
 		logger_printf("display_fbdev_configure(): Bad arguments!\n");
 		goto fail;
@@ -156,7 +156,7 @@ fail:
 	return false;
 }
 
-bool display_fbdev_putimage(unsigned char *src[], int src_stride[], FORMAT_VIDEO format) {
+bool display_fbdev_putimage(U8 *src[], U32 src_stride[], FORMAT_VIDEO format) {
 	int y;
 
 	if (src[0] == NULL || src_stride[0] <= 0) {
@@ -175,6 +175,7 @@ fail:
 }
 
 bool display_fbdev_flip() {
+
 	// nothing
 
 	return true;

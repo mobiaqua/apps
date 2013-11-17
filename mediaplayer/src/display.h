@@ -32,19 +32,19 @@ typedef enum {
 
 typedef bool (display_init_t)();
 typedef void (display_deinit_t)();
-typedef bool (display_configure_t)(int, int);
-typedef bool (display_putimage_t)(unsigned char *src[], int src_stride[], FORMAT_VIDEO);
+typedef bool (display_configure_t)(U32, U32);
+typedef bool (display_putimage_t)(U8 *src[], U32 src_stride[], FORMAT_VIDEO);
 typedef bool (display_flip_t)();
 
 typedef struct {
-	bool	initialized;
-	void	*priv;
+	bool				initialized;
+	void				*priv;
 
-	display_init_t *init;
-	display_deinit_t *deinit;
+	display_init_t 		*init;
+	display_deinit_t 	*deinit;
 	display_configure_t *configure;
-	display_putimage_t *putimage;
-	display_flip_t *flip;
+	display_putimage_t 	*putimage;
+	display_flip_t 		*flip;
 } display_t;
 
 display_t *display_get(const char *driver_name);
