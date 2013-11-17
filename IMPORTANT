@@ -1,2 +1,7 @@
 
-This directory as 'apps' must be at same the level as 'oe' to match both directories.
+Requirements:
+- Latest stable Eclipse IDE for C/C++ Developers
+- GNU ARM Eclipse Plug-in
+- MobiAqua OE target builded
+- This directory as 'apps' and MobiAqua OE directory as 'oe'
+  must be at the same level to match both directories.
