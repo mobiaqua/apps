@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,40 +19,34 @@
  *
  */
 
-#ifndef TYPEDEFS_H
-#define TYPEDEFS_H
+#ifndef DISPLAY_BASE_H
+#define DISPLAY_BASE_H
 
-typedef unsigned char		U8;
-typedef signed char			S8;
+#include "basetypes.h"
+#include "avtypes.h"
+#include "decoder_video_base.h"
 
-typedef unsigned short		U16;
-typedef signed short		S16;
+namespace MediaPLayer {
 
-typedef unsigned int		U32;
-typedef signed int			S32;
+class Display {
+protected:
 
-typedef unsigned long long	U64;
-typedef signed long long	S64;
+	bool	_initialized;
 
-typedef int					STATUS;
-#define S_OK				1
-#define S_FAIL				0
+public:
 
-typedef int					bool;
-#define true				1
-#define false				0
+	Display();
+	virtual ~Display();
 
-#undef NULL
-#define NULL				((void *)0)
+	virtual STATUS init() = 0;
+	virtual STATUS deinit() = 0;
+	virtual STATUS configure(U32 width, U32 height) = 0;
+	virtual STATUS putImage(VideoFrame *frame) = 0;
+	virtual STATUS flip() = 0;
+};
 
-#ifndef MIN
-#define MIN(a, b)			((a) < (b) ? (a) : (b))
-#endif
+Display *CreateDisplay(DISPLAY_TYPE displayType);
 
-#ifndef MAX
-#define MAX(a, b)			((a) > (b) ? (a) : (b))
-#endif
-
-#define SIZE_OF_ARRAY(a) 	((int)(sizeof(a) / sizeof(a[0])))
+} // namespace
 
 #endif

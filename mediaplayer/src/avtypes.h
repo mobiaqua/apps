@@ -1,0 +1,152 @@
+/*
+ * MobiAqua Media Player
+ *
+ * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ */
+
+#ifndef AVTYPES_H
+#define AVTYPES_H
+
+namespace MediaPLayer {
+
+typedef enum _DECODER_TYPE {
+	DECODER_NONE,
+	DECODER_LIBAV,
+	DECODER_LIBMPG123,
+	DECODER_LIBDCE,
+	DECODER_CODEC_ENGINE,
+} DECODER_TYPE;
+
+typedef enum _DEMUXER_TYPE {
+	DEMUXER_NONE,
+	DEMUXER_LIBAV,
+} DEMUXER_TYPE;
+
+typedef enum _DISPLAY_TYPE {
+	DISPLAY_NONE,
+	DISPLAY_FBDEV,
+} DISPLAY_TYPE;
+
+typedef enum _AUDIO_TYPE {
+	AUDIO_NONE,
+	AUDIO_ALSA,
+} AUDIO_TYPE;
+
+typedef enum _CODEC_ID {
+	CODEC_ID_NONE = -1,
+	// video
+	CODEC_ID_MPEG1VIDEO,
+	CODEC_ID_MPEG2VIDEO,
+	CODEC_ID_H261,
+	CODEC_ID_H263,
+	CODEC_ID_H263P,
+	CODEC_ID_H263I,
+	CODEC_ID_MPEG4,
+	CODEC_ID_MSMPEG4V1,
+	CODEC_ID_MSMPEG4V2,
+	CODEC_ID_MSMPEG4V3,
+	CODEC_ID_FLV1,
+	CODEC_ID_SVQ1,
+	CODEC_ID_SVQ3,
+	CODEC_ID_AIC,
+	CODEC_ID_DVVIDEO,
+	CODEC_ID_VP3,
+	CODEC_ID_VP4,
+	CODEC_ID_VP5,
+	CODEC_ID_VP6,
+	CODEC_ID_VP6A,
+	CODEC_ID_VP6F,
+	CODEC_ID_VP7,
+	CODEC_ID_VP8,
+	CODEC_ID_VP9,
+	CODEC_ID_WEBP,
+	CODEC_ID_THEORA,
+	CODEC_ID_RV10,
+	CODEC_ID_RV20,
+	CODEC_ID_RV30,
+	CODEC_ID_RV40,
+	CODEC_ID_WMV1,
+	CODEC_ID_WMV2,
+	CODEC_ID_WMV3,
+	CODEC_ID_VC1,
+	CODEC_ID_H264,
+	CODEC_ID_HEVC,
+	// audio
+	CODEC_ID_MP1 = 100,
+	CODEC_ID_MP2,
+	CODEC_ID_MP3,
+	CODEC_ID_MP3ADU,
+	CODEC_ID_MP3ON4,
+	CODEC_ID_MP4ALS,
+	CODEC_ID_DVAUDIO,
+	CODEC_ID_WMAV1,
+	CODEC_ID_WMAV2,
+	CODEC_ID_WMAPRO,
+	CODEC_ID_WMALOSSLESS,
+	CODEC_ID_RA_144,
+	CODEC_ID_RA_288,
+	CODEC_ID_RALF,
+	CODEC_ID_AAC,
+	CODEC_ID_AAC_LATM,
+	CODEC_ID_ALAC,
+	CODEC_ID_AC3,
+	CODEC_ID_EAC3,
+	CODEC_ID_DTS,
+	CODEC_ID_TRUEHD,
+	CODEC_ID_VORBIS,
+	CODEC_ID_FLAC,
+	CODEC_ID_ON2AVC,
+	CODEC_ID_WMA9,
+	CODEC_ID_ATRAC3,
+	CODEC_ID_PCM_S16LE,
+	CODEC_ID_PCM_S16BE,
+	CODEC_ID_PCM_U16LE,
+	CODEC_ID_PCM_U16BE,
+	CODEC_ID_PCM_S32LE,
+	CODEC_ID_PCM_S32BE,
+	CODEC_ID_PCM_U32LE,
+	CODEC_ID_PCM_U32BE,
+	CODEC_ID_PCM_S24LE,
+	CODEC_ID_PCM_S24BE,
+	CODEC_ID_PCM_U24LE,
+	CODEC_ID_PCM_U24BE,
+	CODEC_ID_PCM_DVD,
+	CODEC_ID_PCM_BLURAY,
+	// subtitles
+	CODEC_ID_DVD_SUBTITLE = 200,
+	CODEC_ID_TEXT,
+	CODEC_ID_XSUB,
+	CODEC_ID_SSA,
+	CODEC_ID_MOV_TEXT,
+	CODEC_ID_HDMV_PGS_SUBTITLE,
+	CODEC_ID_DVB_TELETEXT,
+	CODEC_ID_SRT,
+} CODEC_ID;
+
+typedef enum _FORMAT_VIDEO {
+	FMT_NONE = -1,
+	FMT_RGB24,
+	FMT_ARGB,
+	FMT_YUV420P, // YV12
+	FMT_YUV422, // YUY2, YUYV422
+	FMT_NV12
+} FORMAT_VIDEO;
+
+} // namespace
+
+#endif

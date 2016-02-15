@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,31 +19,25 @@
  *
  */
 
-#ifndef DISPLAY_FBDEV_PRIV_H
-#define DISPLAY_FBDEV_PRIV_H
+#ifndef DECODER_VIDEO_CODECENGINE_H
+#define DECODER_VIDEO_CODECENGINE_H
 
-#include <linux/fb.h>
+#include "basetypes.h"
 
-#include "typedefs.h"
+namespace MediaPLayer {
 
-typedef struct {
-	bool initialized;
-	int fd;
-	struct fb_var_screeninfo vinfo;
-	struct fb_fix_screeninfo finfo;
-	U8 *fb_ptr;
-	U32 fb_size;
-	U32 fb_stride;
-	U32 fb_width;
-	U32 fb_height;
-	U32 dst_x, dst_y;
-	U32 dst_width, dst_height;
-} display_fbdev_t;
+class DecoderVideoCodecEngine : public DecoderVideo {
+public:
+	DecoderVideoCodecEngine();
+	~DecoderVideoCodecEngine();
 
-bool display_fbdev_init();
-void display_fbdev_deinit();
-bool display_fbdev_configure(U32 width, U32 height);
-bool display_fbdev_putimage(U8 *src[], U32 src_stride[], FORMAT_VIDEO format);
-bool display_fbdev_flip();
+	bool isCapable(Demuxer *demuxer);
+	STATUS init(Demuxer *demuxer);
+	STATUS deinit();
+	STATUS decodeFrame(bool &frameReady, U8 *data, U32 dataSize);
+	STATUS getVideoStreamOutputFrame(VideoFrame *frame);
+};
+
+} // namespace
 
 #endif

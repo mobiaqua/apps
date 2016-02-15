@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2015 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,13 +19,26 @@
  *
  */
 
-#ifndef LOGGER_PRIVATE_H
-#define LOGGER_PRIVATE_H
+#ifndef YUV420_H
+#define YUV420_H
+
+#include "basetypes.h"
+
+namespace MediaPLayer {
 
 typedef struct {
-	bool            initialized;
-	pthread_mutex_t lock;
-	float           started_timestamp;
-} logger_private_t;
+	U32 w, h, dx, dy, dw, dh, y_stride, uv_stride;
+} yuv420FrameInfo;
+
+void yuv420_to_rgba_open(yuv420FrameInfo *dst, yuv420FrameInfo *src);
+int yuv420_to_rgba_convert(U8 *vdst[], U8 *vsrc[], U8 *, U8 *);
+
+void yuv420_to_nv12_open(yuv420FrameInfo *dst, yuv420FrameInfo *src);
+int yuv420_to_nv12_convert(U8 *vdst[], U8 *vsrc[], U8 *, U8 *);
+
+void yuv420_to_yuv422_open(yuv420FrameInfo *dst, yuv420FrameInfo *src);
+int yuv420_to_yuv422_convert(U8 *vdst[], U8 *vsrc[], U8 *, U8 *);
+
+} // namespace
 
 #endif

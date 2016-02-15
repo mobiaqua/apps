@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -20,34 +20,34 @@
  */
 
 #include <string.h>
+#include <assert.h>
 
-#include "typedefs.h"
-#include "logger.h"
-#include "display.h"
-#include "display_fbdev_priv.h"
+#include "basetypes.h"
+#include "decoder_audio_base.h"
+#include "decoder_audio_libav.h"
+#include "decoder_audio_libmpg123.h"
 
-static display_t display;
+namespace MediaPLayer {
 
-display_t *display_get(const char *driver_name) {
-	if (driver_name == NULL)
-		return NULL;
-
-	if (strcmp(driver_name, "fbdev") == 0) {
-		display.init = &display_fbdev_init;
-		display.deinit = &display_fbdev_deinit;
-		display.configure = &display_fbdev_configure;
-		display.putimage = &display_fbdev_putimage;
-		display.flip = &display_fbdev_flip;
-	} else
-		return NULL;
-
-	return &display;
+DecoderAudio::DecoderAudio() :
+		_initialized(false) {
+	assert(false);
 }
 
-void display_release(display_t *display) {
-	display->init = NULL;
-	display->deinit = NULL;
-	display->configure = NULL;
-	display->putimage = NULL;
-	display->flip = NULL;
+DecoderAudio::~DecoderAudio() {
+	assert(false);
 }
+
+DecoderAudio *CreateDecoderAudio(DECODER_TYPE decoderType) {
+	switch (decoderType) {
+	case DECODER_LIBAV:
+		return new DecoderAudioLibAV();
+	case DECODER_LIBMPG123:
+		return new DecoderAudioLibMPG123();
+	default:
+		return NULL;
+	}
+}
+
+} // namespace
+

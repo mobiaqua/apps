@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -19,11 +19,26 @@
  *
  */
 
-#ifndef LOGGER_H
-#define LOGGER_H
+#ifndef DECODER_AUDIO_LIBMPG123_H
+#define DECODER_AUDIO_LIBMPG123_H
 
-void logger_init();
-void logger_deinit();
-void logger_printf(const char *format_str, ...);
+#include "basetypes.h"
+#include "decoder_audio_base.h"
+
+namespace MediaPLayer {
+
+class DecoderAudioLibMPG123 : public DecoderAudio {
+public:
+
+	DecoderAudioLibMPG123();
+	virtual ~DecoderAudioLibMPG123();
+
+	virtual bool isCapable(Demuxer *demuxer);
+	virtual STATUS init(Demuxer *demuxer);
+	virtual STATUS deinit();
+	virtual STATUS decodeFrame();
+};
+
+} // namespace
 
 #endif
