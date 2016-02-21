@@ -95,7 +95,7 @@ STATUS Logs::printf(const char *format, ...) {
 	vsnprintf(message, MAX_LOG_MSG_SIZE - 1, format, arguments);
 	va_end(arguments);
 
-	printf("[%.3f] %s", timestamp / 1000, message);
+	::printf("[%.3f] %s", timestamp / 1000, message);
 
 	pthread_mutex_lock(&_lock);
 
