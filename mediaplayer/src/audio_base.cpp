@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2014-2016 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,11 +29,6 @@ namespace MediaPLayer {
 
 Audio::Audio() :
 		_initialized(false) {
-	assert(false);
-};
-
-Audio::~Audio() {
-	assert(false);
 };
 
 Audio *CreateAudio(AUDIO_TYPE audioType) {
@@ -41,7 +36,7 @@ Audio *CreateAudio(AUDIO_TYPE audioType) {
 	case AUDIO_ALSA:
 		return new AudioAlsa();
 	default:
-		return NULL;
+		return nullptr;
 	}
 }
 

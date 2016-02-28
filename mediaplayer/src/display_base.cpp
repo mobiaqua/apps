@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2016 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,11 +29,6 @@ namespace MediaPLayer {
 
 Display::Display() :
 		_initialized(false) {
-	assert(false);
-}
-
-Display::~Display() {
-	assert(false);
 }
 
 Display *CreateDisplay(DISPLAY_TYPE displayType) {
@@ -41,7 +36,7 @@ Display *CreateDisplay(DISPLAY_TYPE displayType) {
 	case DISPLAY_FBDEV:
 		return new DisplayFBDev();
 	default:
-		return NULL;
+		return nullptr;
 	}
 }
 

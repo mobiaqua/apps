@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2016 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,7 +27,6 @@
 namespace MediaPLayer {
 
 DecoderAudioLibMPG123::DecoderAudioLibMPG123() {
-	_initialized = false;
 }
 
 DecoderAudioLibMPG123::~DecoderAudioLibMPG123() {
@@ -35,7 +34,7 @@ DecoderAudioLibMPG123::~DecoderAudioLibMPG123() {
 }
 
 bool DecoderAudioLibMPG123::isCapable(Demuxer *demuxer) {
-	if (demuxer == NULL) {
+	if (demuxer == nullptr) {
 		log->printf("DecoderAudioLibMPG123::isCapable(): demuxer is NULL\n");
 		return false;
 	}

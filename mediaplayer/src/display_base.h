@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2016 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -36,7 +36,7 @@ protected:
 public:
 
 	Display();
-	virtual ~Display();
+	virtual ~Display() {}
 
 	virtual STATUS init() = 0;
 	virtual STATUS deinit() = 0;

@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2016 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,11 +40,11 @@ namespace MediaPLayer {
 int Player(int argc, char *argv[]) {
 	int option;
 	const char *filename;
-	Display *display = NULL;
-	Audio *audio = NULL;
-	Demuxer *demuxer = NULL;
-	DecoderVideo *decoderVideo = NULL;
-	DecoderAudio *decoderAudio = NULL;
+	Display *display = nullptr;
+	Audio *audio = nullptr;
+	Demuxer *demuxer = nullptr;
+	DecoderVideo *decoderVideo = nullptr;
+	DecoderAudio *decoderAudio = nullptr;
 
 	if (CreateLogs() == S_FAIL)
 		goto end;
@@ -67,7 +67,7 @@ int Player(int argc, char *argv[]) {
 
 
 	display = CreateDisplay(DISPLAY_FBDEV);
-	if (display == NULL) {
+	if (display == nullptr) {
 		log->printf("Failed get handle to fbdev display!\n");
 		goto end;
 	}
@@ -77,13 +77,13 @@ int Player(int argc, char *argv[]) {
 	}
 
 	audio = CreateAudio(AUDIO_ALSA);
-	if (audio == NULL) {
+	if (audio == nullptr) {
 		log->printf("Failed get handle to audio Alsa!\n");
 		goto end;
 	}
 
 	demuxer = CreateDemuxer(DEMUXER_LIBAV);
-	if (demuxer == NULL) {
+	if (demuxer == nullptr) {
 		log->printf("Failed get handle to libav demuxer!\n");
 		goto end;
 	}
@@ -98,19 +98,19 @@ int Player(int argc, char *argv[]) {
 	}
 
 	decoderVideo = CreateDecoderVideo(DECODER_LIBDCE);
-	if (decoderVideo == NULL) {
+	if (decoderVideo == nullptr) {
 		log->printf("Failed get handle to libdce decoder!\n");
 	} else if (!decoderVideo->isCapable(demuxer)) {
 		delete decoderVideo;
-		decoderVideo = NULL;
+		decoderVideo = nullptr;
 	}
 	decoderVideo = CreateDecoderVideo(DECODER_LIBAV);
-	if (decoderVideo == NULL) {
+	if (decoderVideo == nullptr) {
 		log->printf("Failed get handle to video decoder!\n");
 		goto end;
 	} else if (!decoderVideo->isCapable(demuxer)) {
 		delete decoderVideo;
-		decoderVideo = NULL;
+		decoderVideo = nullptr;
 		log->printf("Failed get capable video decoder!\n");
 		goto end;
 	}
@@ -120,7 +120,7 @@ int Player(int argc, char *argv[]) {
 	}
 
 	decoderAudio = CreateDecoderAudio(DECODER_LIBAV);
-	if (decoderAudio == NULL) {
+	if (decoderAudio == nullptr) {
 		log->printf("Failed get handle to audio decoder!\n");
 		goto end;
 	}
@@ -144,7 +144,7 @@ int Player(int argc, char *argv[]) {
 		}
 
 		if (frameReady) {
-			VideoFrame *outputFrame = NULL;
+			VideoFrame *outputFrame = nullptr;
 			if (decoderVideo->getVideoStreamOutputFrame(outputFrame) != S_OK) {
 				log->printf("Failed get decoded frame!\n");
 				break;

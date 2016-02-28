@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2016 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,11 +29,6 @@ namespace MediaPLayer {
 
 Demuxer::Demuxer() :
 		_initialized(false) {
-	assert(false);
-}
-
-Demuxer::~Demuxer() {
-	assert(false);
 }
 
 Demuxer *CreateDemuxer(DEMUXER_TYPE demuxerType) {
@@ -41,7 +36,7 @@ Demuxer *CreateDemuxer(DEMUXER_TYPE demuxerType) {
 	case DEMUXER_LIBAV:
 		return new DemuxerLibAV();
 	default:
-		return NULL;
+		return nullptr;
 	}
 }
 

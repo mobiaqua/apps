@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2016 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -28,9 +28,7 @@
 namespace MediaPLayer {
 
 DecoderVideoLibAV::DecoderVideoLibAV() :
-		_avc(NULL), _codec(NULL), _frame(NULL) {
-	_initialized = false;
-	_bpp = 0;
+		_avc(nullptr), _codec(nullptr), _frame(nullptr) {
 	_frame = av_frame_alloc();
 }
 
@@ -39,7 +37,7 @@ DecoderVideoLibAV::~DecoderVideoLibAV() {
 }
 
 bool DecoderVideoLibAV::isCapable(Demuxer *demuxer) {
-	if (demuxer == NULL) {
+	if (demuxer == nullptr) {
 		log->printf("DecoderVideoLibAV::isCapable(): demuxer is NULL\n");
 		return false;
 	}
@@ -102,7 +100,7 @@ STATUS DecoderVideoLibAV::init(Demuxer *demuxer) {
 		goto fail;
 	}
 
-	if (demuxer == NULL) {
+	if (demuxer == nullptr) {
 		log->printf("DecoderVideoLibAV::init(): demuxer is NULL\n");
 		goto fail;
 	}
@@ -281,10 +279,10 @@ STATUS DecoderVideoLibAV::init(Demuxer *demuxer) {
 
 	return S_OK;
 fail:
-	if (_avc != NULL) {
+	if (_avc) {
 		avcodec_close(_avc);
 		av_freep(&_avc);
-		_avc = NULL;
+		_avc = nullptr;
 	}
 	return S_FAIL;
 }
@@ -295,10 +293,10 @@ STATUS DecoderVideoLibAV::deinit() {
 		return S_FAIL;
 	}
 	av_frame_free(&_frame);
-	_frame = NULL;
+	_frame = nullptr;
 	avcodec_close(_avc);
 	av_freep(&_avc);
-	_avc = NULL;
+	_avc = nullptr;
 
 	return S_OK;
 }

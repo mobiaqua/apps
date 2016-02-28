@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2016 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -27,8 +27,8 @@
 namespace MediaPLayer {
 
 DemuxerLibAV::DemuxerLibAV() :
-		_afc(NULL), _videoStream(NULL), _audioStream(NULL),
-		_bsf(NULL), _pts(0), _initialized(false) {
+		_afc(nullptr), _videoStream(nullptr), _audioStream(nullptr),
+		_bsf(nullptr), _pts(0) {
 	memset(&_packedFrame, 0, sizeof(AVPacket));
 	memset(&_streamFrame, 0, sizeof(StreamFrame));
 }
@@ -57,13 +57,13 @@ STATUS DemuxerLibAV::openFile(const char *filename) {
 
 	av_register_all();
 
-	err = avformat_open_input(&_afc, filename, NULL, NULL);
+	err = avformat_open_input(&_afc, filename, nullptr, nullptr);
 	if (err < 0) {
 		log->printf("DemuxerLibAV::openFile(): avformat_open_input error %d\n", err);
 		return S_FAIL;
 	}
 
-	err = avformat_find_stream_info(_afc, NULL);
+	err = avformat_find_stream_info(_afc, nullptr);
 	if (err < 0) {
 		log->printf("DemuxerLibAV::openFile(): avformat_find_stream_info error %d\n", err);
 		return S_FAIL;
@@ -85,7 +85,7 @@ void DemuxerLibAV::closeFile() {
 
 	if (_bsf && _streamFrame.videoFrame.data) {
 		av_free(_streamFrame.videoFrame.data);
-		_streamFrame.videoFrame.data = NULL;
+		_streamFrame.videoFrame.data = nullptr;
 	}
 
 	av_packet_unref(&_packedFrame);
@@ -93,7 +93,7 @@ void DemuxerLibAV::closeFile() {
 
 	if (_bsf) {
 		av_bitstream_filter_close(_bsf);
-		_bsf = NULL;
+		_bsf = nullptr;
 	}
 }
 
@@ -110,7 +110,7 @@ STATUS DemuxerLibAV::selectVideoStream() {
 			if (cc->codec_id == AV_CODEC_ID_H264) {
 				if (cc->extradata && cc->extradata_size > 0 && cc->extradata[0] == 1) {
 					_bsf = av_bitstream_filter_init("h264_mp4toannexb");
-					if (_bsf == NULL) {
+					if (_bsf == nullptr) {
 						log->printf("DemuxerLibAV::selectVideoStream(): av_bitstream_filter_init failed!\n");
 						return S_FAIL;
 					}
@@ -193,17 +193,17 @@ STATUS DemuxerLibAV::readNextFrame(StreamFrame &frame) {
 
 	if (_bsf && _streamFrame.videoFrame.data) {
 		av_free(_streamFrame.videoFrame.data);
-		_streamFrame.videoFrame.data = NULL;
+		_streamFrame.videoFrame.data = nullptr;
 	}
 
-	_streamFrame.videoFrame.data = NULL;
+	_streamFrame.videoFrame.data = nullptr;
 	_streamFrame.videoFrame.dataSize = 0;
 
 	if (av_read_frame(_afc, &_packedFrame) == 0) {
 		if (_packedFrame.stream_index == _videoStream->index) {
 			if (_bsf) {
 				int err = av_bitstream_filter_filter(_bsf, _videoStream->codec,
-						NULL, &_streamFrame.videoFrame.data, (S32 *)&_streamFrame.videoFrame.dataSize,
+						nullptr, &_streamFrame.videoFrame.data, (S32 *)&_streamFrame.videoFrame.dataSize,
 						_packedFrame.data, _packedFrame.size, 0);
 				if (err < 0) {
 					log->printf("DemuxerLibAV::getNextFrame(): av_bitstream_filter_filter failed!\n");
@@ -236,7 +236,7 @@ STATUS DemuxerLibAV::getVideoStreamInfo(StreamVideoInfo &info) {
 		log->printf("DemuxerLibAV::getVideoStreamInfo(): demuxer not opened!\n");
 		return S_FAIL;
 	}
-	if (_videoStream == NULL) {
+	if (_videoStream == nullptr) {
 		log->printf("DemuxerLibAV::getVideoStreamInfo(): video stream null!\n");
 		return S_FAIL;
 	}
@@ -368,7 +368,7 @@ STATUS DemuxerLibAV::getVideoStreamExtraData(U32 &size, U8 **data) {
 		return S_FAIL;
 	}
 
-	if (_videoStream == NULL) {
+	if (_videoStream == nullptr) {
 		log->printf("DemuxerLibAV::getVideoStreamExtraData(): video stream null!\n");
 		return S_FAIL;
 	}

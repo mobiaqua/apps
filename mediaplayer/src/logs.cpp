@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2016 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -20,7 +20,7 @@
  */
 
 #include <stdlib.h>
-#include <stdio.h> 
+#include <stdio.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
@@ -51,7 +51,7 @@ STATUS Logs::init() {
 		return S_FAIL;
 	}
 
-	gettimeofday(&current_time, NULL);
+	gettimeofday(&current_time, nullptr);
 	_startedTimestamp = ((current_time.tv_sec - 1) * 1000 + (current_time.tv_usec / 1000));
 
 	::printf("- compiled at time: " __DATE__ " " __TIME__ " -\n");
@@ -114,7 +114,7 @@ Logs *log;
 
 STATUS CreateLogs() {
 	log = new Logs();
-	if (log == NULL) {
+	if (log == nullptr) {
 		fprintf(stderr, "CreateLogs: Failed create instance: out of memory\n");
 		return S_FAIL;
 	}

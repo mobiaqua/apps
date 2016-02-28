@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2016 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -38,9 +38,9 @@
 namespace MediaPLayer {
 
 DisplayFBDev::DisplayFBDev() :
-		_fd(-1), _fbPtr(NULL), _fbSize(0), _fbStride(0),
+		_fd(-1), _fbPtr(nullptr), _fbSize(0), _fbStride(0),
 		_fbWidth(0), _fbHeight(0), _dstX(0), _dstY(0),
-		_dstWidth(0), _dstHeight(0), _initialized(false) {
+		_dstWidth(0), _dstHeight(0) {
 }
 
 DisplayFBDev::~DisplayFBDev() {
@@ -167,7 +167,7 @@ fail:
 STATUS DisplayFBDev::putImage(VideoFrame *frame) {
 	U32 x, y;
 
-	if (frame == NULL || frame->data[0] == NULL) {
+	if (frame == nullptr || frame->data[0] == nullptr) {
 		log->printf("DisplayFBDev::putImage(): Bad arguments!\n");
 		goto fail;
 	}

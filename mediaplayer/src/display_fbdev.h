@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013-2014 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2016 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -40,10 +40,6 @@ private:
 	U32                         _fbWidth, _fbHeight;
 	U32                         _dstX, _dstY;
 	U32                         _dstWidth, _dstHeight;
-
-protected:
-
-	bool						_initialized;
 
 public:
 
