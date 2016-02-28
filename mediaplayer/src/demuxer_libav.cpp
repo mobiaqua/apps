@@ -50,7 +50,7 @@ STATUS DemuxerLibAV::deinit() {
 STATUS DemuxerLibAV::openFile(const char *filename) {
 	int err;
 
-	if (!_initialized) {
+	if (_initialized) {
 		log->printf("DemuxerLibAV::openFile(): demuxer is allready open!\n");
 		return S_FAIL;
 	}
