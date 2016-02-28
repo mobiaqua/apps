@@ -226,12 +226,12 @@ STATUS DecoderVideoLibAV::init(Demuxer *demuxer) {
 	}
 
 	_codec = avcodec_find_decoder(codecIdAV);
-	if (_codec == NULL) {
+	if (_codec == nullptr) {
 		log->printf("DecoderVideoLibAV::init(): avcodec_find_decoder() failed\n");
 		goto fail;
 	}
-	_avc = avcodec_alloc_context3(NULL);
-	if (_avc == NULL) {
+	_avc = avcodec_alloc_context3(nullptr);
+	if (_avc == nullptr) {
 		log->printf("DecoderVideoLibAV::init(): avcodec_alloc_context() failed\n");
 		goto fail;
 	}
@@ -246,7 +246,7 @@ STATUS DecoderVideoLibAV::init(Demuxer *demuxer) {
 		goto fail;
 	}
 
-	err = avcodec_open2(_avc, _codec, NULL);
+	err = avcodec_open2(_avc, _codec, nullptr);
 	if (err != 0) {
 		fprintf(stderr, "DecoderVideoLibAV::init(): avcodec_open2() failed: %d\n", err);
 		goto fail;
