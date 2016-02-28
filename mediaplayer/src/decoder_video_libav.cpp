@@ -270,8 +270,7 @@ STATUS DecoderVideoLibAV::init(Demuxer *demuxer) {
 		break;
 	default:
 		_pixelFormat = FMT_NONE;
-		log->printf("DecoderVideoLibAV::init(): Unknown pixel format: 0x%08h!\n",
-				_avc->pix_fmt);
+		log->printf("DecoderVideoLibAV::init(): Unknown pixel format: 0x%08x!\n", _avc->pix_fmt);
 		goto fail;
 	}
 
