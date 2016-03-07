@@ -108,13 +108,170 @@ STATUS DemuxerLibAV::selectVideoStream() {
 			_videoStream = _afc->streams[i];
 			AVCodecContext *cc = _videoStream->codec;
 			if (cc->codec_id == AV_CODEC_ID_H264) {
-				if (cc->extradata && cc->extradata_size > 0 && cc->extradata[0] == 1) {
+				if (cc->extradata && cc->extradata_size >= 8 && cc->extradata[0] == 1) {
 					_bsf = av_bitstream_filter_init("h264_mp4toannexb");
 					if (_bsf == nullptr) {
 						log->printf("DemuxerLibAV::selectVideoStream(): av_bitstream_filter_init failed!\n");
 						return S_FAIL;
 					}
 				}
+			} else if (cc->codec_id == AV_CODEC_ID_MPEG4) {
+				_bsf = av_bitstream_filter_init("mpeg4_unpack_bframes");
+				if (_bsf == nullptr) {
+					log->printf("DemuxerLibAV::selectVideoStream(): av_bitstream_filter_init failed!\n");
+					return S_FAIL;
+				}
+			} else if (cc->codec_id == AV_CODEC_ID_HEVC) {
+				if (cc->extradata && cc->extradata_size >= 8 && cc->extradata[0] == 1) {
+					_bsf = av_bitstream_filter_init("hevc_mp4toannexb");
+					if (_bsf == nullptr) {
+						log->printf("DemuxerLibAV::selectVideoStream(): av_bitstream_filter_init failed!\n");
+						return S_FAIL;
+					}
+				}
+			}
+
+			_videoStreamInfo.width = (U32)_videoStream->codec->width;
+			_videoStreamInfo.height = (U32)_videoStream->codec->height;
+			_videoStreamInfo.timeBaseScale = (U32)_videoStream->codec->time_base.num;
+			_videoStreamInfo.timeBaseRate = (U32)_videoStream->codec->time_base.den;
+
+			switch (_videoStream->codec->codec_id) {
+			case AV_CODEC_ID_MPEG1VIDEO:
+				_videoStreamInfo.codecId = CODEC_ID_MPEG1VIDEO;
+				break;
+			case AV_CODEC_ID_MPEG2VIDEO:
+				_videoStreamInfo.codecId = CODEC_ID_MPEG2VIDEO;
+				break;
+			case AV_CODEC_ID_H261:
+				_videoStreamInfo.codecId = CODEC_ID_H261;
+				break;
+			case AV_CODEC_ID_H263:
+				_videoStreamInfo.codecId = CODEC_ID_H263;
+				break;
+			case AV_CODEC_ID_MPEG4:
+				_videoStreamInfo.codecId = CODEC_ID_MPEG4;
+				break;
+			case AV_CODEC_ID_MSMPEG4V1:
+				_videoStreamInfo.codecId = CODEC_ID_MSMPEG4V1;
+				break;
+			case AV_CODEC_ID_MSMPEG4V2:
+				_videoStreamInfo.codecId = CODEC_ID_MSMPEG4V2;
+				break;
+			case AV_CODEC_ID_MSMPEG4V3:
+				_videoStreamInfo.codecId = CODEC_ID_MSMPEG4V3;
+				break;
+			case AV_CODEC_ID_H263P:
+				_videoStreamInfo.codecId = CODEC_ID_H263P;
+				break;
+			case AV_CODEC_ID_H263I:
+				_videoStreamInfo.codecId = CODEC_ID_H263I;
+				break;
+			case AV_CODEC_ID_FLV1:
+				_videoStreamInfo.codecId = CODEC_ID_FLV1;
+				break;
+			case AV_CODEC_ID_SVQ1:
+				_videoStreamInfo.codecId = CODEC_ID_SVQ1;
+				break;
+			case AV_CODEC_ID_SVQ3:
+				_videoStreamInfo.codecId = CODEC_ID_SVQ3;
+				break;
+			case AV_CODEC_ID_AIC:
+				_videoStreamInfo.codecId = CODEC_ID_AIC;
+				break;
+			case AV_CODEC_ID_DVVIDEO:
+				_videoStreamInfo.codecId = CODEC_ID_DVVIDEO;
+				break;
+			case AV_CODEC_ID_VP3:
+				_videoStreamInfo.codecId = CODEC_ID_VP3;
+				break;
+			case AV_CODEC_ID_VP5:
+				_videoStreamInfo.codecId = CODEC_ID_VP5;
+				break;
+			case AV_CODEC_ID_VP6:
+				_videoStreamInfo.codecId = CODEC_ID_VP6;
+				break;
+			case AV_CODEC_ID_VP6A:
+				_videoStreamInfo.codecId = CODEC_ID_VP6A;
+				break;
+			case AV_CODEC_ID_VP6F:
+				_videoStreamInfo.codecId = CODEC_ID_VP6F;
+				break;
+			case AV_CODEC_ID_VP7:
+				_videoStreamInfo.codecId = CODEC_ID_VP7;
+				break;
+			case AV_CODEC_ID_VP8:
+				_videoStreamInfo.codecId = CODEC_ID_VP8;
+				break;
+			case AV_CODEC_ID_VP9:
+				_videoStreamInfo.codecId = CODEC_ID_VP9;
+				break;
+			case AV_CODEC_ID_WEBP:
+				_videoStreamInfo.codecId = CODEC_ID_WEBP;
+				break;
+			case AV_CODEC_ID_THEORA:
+				_videoStreamInfo.codecId = CODEC_ID_THEORA;
+				break;
+			case AV_CODEC_ID_RV10:
+				_videoStreamInfo.codecId = CODEC_ID_RV10;
+				break;
+			case AV_CODEC_ID_RV20:
+				_videoStreamInfo.codecId = CODEC_ID_RV20;
+				break;
+			case AV_CODEC_ID_RV30:
+				_videoStreamInfo.codecId = CODEC_ID_RV30;
+				break;
+			case AV_CODEC_ID_RV40:
+				_videoStreamInfo.codecId = CODEC_ID_RV40;
+				break;
+			case AV_CODEC_ID_WMV1:
+				_videoStreamInfo.codecId = CODEC_ID_WMV1;
+				break;
+			case AV_CODEC_ID_WMV2:
+				_videoStreamInfo.codecId = CODEC_ID_WMV2;
+				break;
+			case AV_CODEC_ID_WMV3:
+				_videoStreamInfo.codecId = CODEC_ID_WMV3;
+				break;
+			case AV_CODEC_ID_VC1:
+				_videoStreamInfo.codecId = CODEC_ID_VC1;
+				break;
+			case AV_CODEC_ID_H264:
+				_videoStreamInfo.codecId = CODEC_ID_H264;
+				break;
+			case AV_CODEC_ID_HEVC:
+				_videoStreamInfo.codecId = CODEC_ID_HEVC;
+				break;
+			default:
+				_videoStreamInfo.codecId = CODEC_ID_NONE;
+				log->printf("DemuxerLibAV::selectVideoStream(): Unknown codec: 0x%08x!\n",
+						_videoStream->codec->codec_id);
+				return S_FAIL;
+			}
+
+			switch (_videoStream->codec->pix_fmt) {
+			case AV_PIX_FMT_RGB24:
+				_videoStreamInfo.pixelfmt = FMT_RGB24;
+				break;
+			case AV_PIX_FMT_ARGB:
+				_videoStreamInfo.pixelfmt = FMT_ARGB;
+				break;
+			case AV_PIX_FMT_YUV420P:
+				_videoStreamInfo.pixelfmt = FMT_YUV420P;
+				break;
+			case AV_PIX_FMT_YUV422P:
+				_videoStreamInfo.pixelfmt = FMT_YUV422P;
+				break;
+			case AV_PIX_FMT_YUV444P:
+				_videoStreamInfo.pixelfmt = FMT_YUV444P;
+				break;
+			case AV_PIX_FMT_NV12:
+				_videoStreamInfo.pixelfmt = FMT_NV12;
+				break;
+			default:
+				_videoStreamInfo.pixelfmt = FMT_NONE;
+				log->printf("DemuxerLibAV::selectVideoStream(): Unknown pixel format: 0x%08x!\n", _videoStream->codec->pix_fmt);
+				return S_FAIL;
 			}
 			return S_OK;
 		}
@@ -123,16 +280,16 @@ STATUS DemuxerLibAV::selectVideoStream() {
 	return S_FAIL;
 }
 
-STATUS DemuxerLibAV::selectAudioStream(U32 index_audio) {
+STATUS DemuxerLibAV::selectAudioStream(S32 index_audio) {
 	if (!_initialized) {
 		log->printf("DemuxerLibAV::selectAudioStream(): demuxer not initialized!\n");
 		return S_FAIL;
 	}
 
-	U32 count_audio = 0;
+	S32 count_audio = 0;
 	for (U32 i = 0; i < _afc->nb_streams; i++) {
 		if (_afc->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
-			if (count_audio++ == index_audio) {
+			if (count_audio++ == index_audio || index_audio == -1) {
 				_audioStream = _afc->streams[i];
 				return S_OK;
 			}
@@ -241,123 +398,7 @@ STATUS DemuxerLibAV::getVideoStreamInfo(StreamVideoInfo &info) {
 		return S_FAIL;
 	}
 
-	info.width = (U32)_videoStream->codec->width;
-	info.height = (U32)_videoStream->codec->height;
-	info.timeBaseScale = (U32)_videoStream->codec->time_base.num;
-	info.timeBaseRate = (U32)_videoStream->codec->time_base.den;
-
-	switch (_videoStream->codec->codec_id) {
-	case AV_CODEC_ID_MPEG1VIDEO:
-		info.codecId = CODEC_ID_MPEG1VIDEO;
-		break;
-	case AV_CODEC_ID_MPEG2VIDEO:
-		info.codecId = CODEC_ID_MPEG2VIDEO;
-		break;
-	case AV_CODEC_ID_H261:
-		info.codecId = CODEC_ID_H261;
-		break;
-	case AV_CODEC_ID_H263:
-		info.codecId = CODEC_ID_H263;
-		break;
-	case AV_CODEC_ID_MPEG4:
-		info.codecId = CODEC_ID_MPEG4;
-		break;
-	case AV_CODEC_ID_MSMPEG4V1:
-		info.codecId = CODEC_ID_MSMPEG4V1;
-		break;
-	case AV_CODEC_ID_MSMPEG4V2:
-		info.codecId = CODEC_ID_MSMPEG4V2;
-		break;
-	case AV_CODEC_ID_MSMPEG4V3:
-		info.codecId = CODEC_ID_MSMPEG4V3;
-		break;
-	case AV_CODEC_ID_H263P:
-		info.codecId = CODEC_ID_H263P;
-		break;
-	case AV_CODEC_ID_H263I:
-		info.codecId = CODEC_ID_H263I;
-		break;
-	case AV_CODEC_ID_FLV1:
-		info.codecId = CODEC_ID_FLV1;
-		break;
-	case AV_CODEC_ID_SVQ1:
-		info.codecId = CODEC_ID_SVQ1;
-		break;
-	case AV_CODEC_ID_SVQ3:
-		info.codecId = CODEC_ID_SVQ3;
-		break;
-	case AV_CODEC_ID_AIC:
-		info.codecId = CODEC_ID_AIC;
-		break;
-	case AV_CODEC_ID_DVVIDEO:
-		info.codecId = CODEC_ID_DVVIDEO;
-		break;
-	case AV_CODEC_ID_VP3:
-		info.codecId = CODEC_ID_VP3;
-		break;
-	case AV_CODEC_ID_VP5:
-		info.codecId = CODEC_ID_VP5;
-		break;
-	case AV_CODEC_ID_VP6:
-		info.codecId = CODEC_ID_VP6;
-		break;
-	case AV_CODEC_ID_VP6A:
-		info.codecId = CODEC_ID_VP6A;
-		break;
-	case AV_CODEC_ID_VP6F:
-		info.codecId = CODEC_ID_VP6F;
-		break;
-	case AV_CODEC_ID_VP7:
-		info.codecId = CODEC_ID_VP7;
-		break;
-	case AV_CODEC_ID_VP8:
-		info.codecId = CODEC_ID_VP8;
-		break;
-	case AV_CODEC_ID_VP9:
-		info.codecId = CODEC_ID_VP9;
-		break;
-	case AV_CODEC_ID_WEBP:
-		info.codecId = CODEC_ID_WEBP;
-		break;
-	case AV_CODEC_ID_THEORA:
-		info.codecId = CODEC_ID_THEORA;
-		break;
-	case AV_CODEC_ID_RV10:
-		info.codecId = CODEC_ID_RV10;
-		break;
-	case AV_CODEC_ID_RV20:
-		info.codecId = CODEC_ID_RV20;
-		break;
-	case AV_CODEC_ID_RV30:
-		info.codecId = CODEC_ID_RV30;
-		break;
-	case AV_CODEC_ID_RV40:
-		info.codecId = CODEC_ID_RV40;
-		break;
-	case AV_CODEC_ID_WMV1:
-		info.codecId = CODEC_ID_WMV1;
-		break;
-	case AV_CODEC_ID_WMV2:
-		info.codecId = CODEC_ID_WMV2;
-		break;
-	case AV_CODEC_ID_WMV3:
-		info.codecId = CODEC_ID_WMV3;
-		break;
-	case AV_CODEC_ID_VC1:
-		info.codecId = CODEC_ID_VC1;
-		break;
-	case AV_CODEC_ID_H264:
-		info.codecId = CODEC_ID_H264;
-		break;
-	case AV_CODEC_ID_HEVC:
-		info.codecId = CODEC_ID_HEVC;
-		break;
-	default:
-		info.codecId = CODEC_ID_NONE;
-		log->printf("DemuxerLibAV::getVideoStreamCodecId(): Unknown codec: 0x%08h!\n",
-				_videoStream->codec->codec_id);
-		return S_FAIL;
-	}
+	memcpy(&info, &_videoStreamInfo, sizeof(StreamVideoInfo));
 
 	return S_OK;
 }

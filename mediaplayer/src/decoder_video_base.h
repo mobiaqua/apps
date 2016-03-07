@@ -41,7 +41,6 @@ protected:
 
 	bool _initialized;
 	U32 _bpp;
-	FORMAT_VIDEO _pixelFormat;
 
 public:
 
@@ -52,7 +51,7 @@ public:
 	virtual STATUS init(Demuxer *demuxer) = 0;
 	virtual STATUS deinit() = 0;
 	virtual STATUS decodeFrame(bool &frameReady, U8 *data, U32 dataSize) = 0;
-	virtual STATUS getVideoStreamOutputFrame(VideoFrame *frame) = 0;
+	virtual STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame) = 0;
 	U32 getBPP() { return _bpp; }
 };
 

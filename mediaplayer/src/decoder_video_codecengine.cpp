@@ -54,7 +54,7 @@ STATUS DecoderVideoCodecEngine::decodeFrame(bool &frameReady, U8 *data, U32 data
 	return S_OK;
 }
 
-STATUS DecoderVideoCodecEngine::getVideoStreamOutputFrame(VideoFrame *frame) {
+STATUS DecoderVideoCodecEngine::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame) {
 	return S_OK;
 }
 

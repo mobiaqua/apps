@@ -55,7 +55,7 @@ STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, U8 *data, U32 dataSize)
 	return S_OK;
 }
 
-STATUS DecoderVideoLibDCE::getVideoStreamOutputFrame(VideoFrame *frame) {
+STATUS DecoderVideoLibDCE::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame) {
 	return S_OK;
 }
 

@@ -96,6 +96,10 @@ int Player(int argc, char *argv[]) {
 		log->printf("Failed select video stream by demuxer!\n");
 		goto end;
 	}
+	if (demuxer->selectAudioStream(-1) == S_FAIL) {
+		log->printf("Failed select audio stream by demuxer!\n");
+		goto end;
+	}
 
 	decoderVideo = CreateDecoderVideo(DECODER_LIBDCE);
 	if (decoderVideo == nullptr) {
@@ -144,13 +148,13 @@ int Player(int argc, char *argv[]) {
 		}
 
 		if (frameReady) {
-			VideoFrame *outputFrame = nullptr;
-			if (decoderVideo->getVideoStreamOutputFrame(outputFrame) != S_OK) {
+			VideoFrame outputFrame;
+			if (decoderVideo->getVideoStreamOutputFrame(demuxer, &outputFrame) != S_OK) {
 				log->printf("Failed get decoded frame!\n");
 				break;
 			}
 
-			if (display->putImage(outputFrame) == S_FAIL) {
+			if (display->putImage(&outputFrame) == S_FAIL) {
 				log->printf("Failed configure display!\n");
 			}
 

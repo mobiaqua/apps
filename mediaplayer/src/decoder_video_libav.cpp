@@ -230,47 +230,16 @@ STATUS DecoderVideoLibAV::init(Demuxer *demuxer) {
 		log->printf("DecoderVideoLibAV::init(): avcodec_find_decoder() failed\n");
 		goto fail;
 	}
-	_avc = avcodec_alloc_context3(nullptr);
+
+	_avc = avcodec_alloc_context3(_codec);
 	if (_avc == nullptr) {
 		log->printf("DecoderVideoLibAV::init(): avcodec_alloc_context() failed\n");
 		goto fail;
 	}
 
-	_avc->width = info.width;
-	_avc->height = info.height;
-	_avc->time_base.num = info.timeBaseRate;
-	_avc->time_base.den = info.timeBaseScale;
-
-	if (demuxer->getVideoStreamExtraData((U32 &)_avc->extradata_size, (U8 **)&_avc->extradata) != S_OK) {
-		log->printf("DecoderVideoLibAV::init(): demuxer->getVideoStreamExtraData() failed\n");
-		goto fail;
-	}
-
 	err = avcodec_open2(_avc, _codec, nullptr);
 	if (err != 0) {
-		fprintf(stderr, "DecoderVideoLibAV::init(): avcodec_open2() failed: %d\n", err);
-		goto fail;
-	}
-
-	switch (_avc->pix_fmt) {
-	case AV_PIX_FMT_RGB24:
-		_pixelFormat = FMT_RGB24;
-		break;
-	case AV_PIX_FMT_ARGB:
-		_pixelFormat = FMT_ARGB;
-		break;
-	case AV_PIX_FMT_YUV422P:
-		_pixelFormat = FMT_YUV422;
-		break;
-	case AV_PIX_FMT_YUV420P:
-		_pixelFormat = FMT_YUV420P;
-		break;
-	case AV_PIX_FMT_NV12:
-		_pixelFormat = FMT_NV12;
-		break;
-	default:
-		_pixelFormat = FMT_NONE;
-		log->printf("DecoderVideoLibAV::init(): Unknown pixel format: 0x%08x!\n", _avc->pix_fmt);
+		log->printf("DecoderVideoLibAV::init(): avcodec_open2() failed: %d\n", err);
 		goto fail;
 	}
 
@@ -324,12 +293,24 @@ STATUS DecoderVideoLibAV::decodeFrame(bool &frameReady, U8 *data, U32 dataSize) 
 	return S_OK;
 }
 
-STATUS DecoderVideoLibAV::getVideoStreamOutputFrame(VideoFrame *frame) {
+STATUS DecoderVideoLibAV::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame) {
 	if (!_initialized) {
 		log->printf("DecoderVideoLibAV::getVideoStreamOutputFrame(): not initialized!\n");
 		return S_FAIL;
 	}
 
+	if (demuxer == nullptr) {
+		log->printf("DecoderVideoLibAV::getVideoStreamOutputFrame(): demuxer is NULL\n");
+		return S_FAIL;
+	}
+
+	StreamVideoInfo info;
+	if (demuxer->getVideoStreamInfo(info) != S_OK) {
+		log->printf("DecoderVideoLibAV::init(): demuxer->getVideoStreamInfo() failed\n");
+		return S_FAIL;
+	}
+
+	frame->pixelfmt = info.pixelfmt;
 	frame->data[0] = _frame->data[0];
 	frame->data[1] = _frame->data[1];
 	frame->data[2] = _frame->data[2];
@@ -338,7 +319,12 @@ STATUS DecoderVideoLibAV::getVideoStreamOutputFrame(VideoFrame *frame) {
 	frame->stride[1] = _frame->linesize[1];
 	frame->stride[2] = _frame->linesize[2];
 	frame->stride[3] = _frame->linesize[3];
-	frame->pixelfmt = _pixelFormat;
+	frame->width = _frame->width;
+	frame->height = _frame->height;
+	frame->dx = 0;
+	frame->dy = 0;
+	frame->dw = info.width;
+	frame->dh = info.height;
 
 	return S_OK;
 }

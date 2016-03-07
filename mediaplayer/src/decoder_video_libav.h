@@ -47,8 +47,7 @@ public:
 	STATUS init(Demuxer *demuxer);
 	STATUS deinit();
 	STATUS decodeFrame(bool &frameReady, U8 *data, U32 dataSize);
-	STATUS getVideoStreamOutputFrame(VideoFrame *frame);
-	STATUS getVideoCodecPixelFormat(FORMAT_VIDEO &formatId);
+	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame);
 };
 
 } // namespace

@@ -39,6 +39,7 @@ private:
 	AVBitStreamFilterContext   *_bsf;
 	S64                         _pts;
 	AVPacket                    _packedFrame;
+	StreamVideoInfo 			_videoStreamInfo;
 
 public:
 	DemuxerLibAV();
@@ -49,7 +50,7 @@ public:
 	virtual STATUS openFile(const char *filename);
 	virtual void closeFile();
 	virtual STATUS selectVideoStream();
-	virtual STATUS selectAudioStream(U32 index_audio);
+	virtual STATUS selectAudioStream(S32 index_audio);
 	virtual STATUS seekFrame(float seek, U32 flags);
 	virtual STATUS readNextFrame(StreamFrame &frame);
 	virtual STATUS getVideoStreamInfo(StreamVideoInfo &info);

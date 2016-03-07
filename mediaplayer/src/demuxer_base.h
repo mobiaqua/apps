@@ -48,11 +48,12 @@ typedef struct {
 } StreamFrame;
 
 typedef struct {
-	CODEC_ID codecId;
-	U32      width;
-	U32      height;
-	U32      timeBaseScale;
-	U32      timeBaseRate;
+	CODEC_ID     codecId;
+	FORMAT_VIDEO pixelfmt;
+	U32          width;
+	U32          height;
+	U32          timeBaseScale;
+	U32          timeBaseRate;
 } StreamVideoInfo;
 
 class Demuxer {
@@ -71,7 +72,7 @@ public:
 	virtual STATUS openFile(const char *filename) = 0;
 	virtual void closeFile() = 0;
 	virtual STATUS selectVideoStream() = 0;
-	virtual STATUS selectAudioStream(U32 index_audio) = 0;
+	virtual STATUS selectAudioStream(S32 index_audio) = 0;
 	virtual STATUS seekFrame(float seek, U32 flags) = 0;
 	virtual STATUS readNextFrame(StreamFrame &frame) = 0;
 	virtual STATUS getVideoStreamInfo(StreamVideoInfo &info) = 0;

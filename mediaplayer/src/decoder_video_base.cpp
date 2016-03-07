@@ -31,7 +31,7 @@
 namespace MediaPLayer {
 
 DecoderVideo::DecoderVideo() :
-		_initialized(false), _bpp(0), _pixelFormat(FMT_NONE) {
+		_initialized(false), _bpp(0) {
 };
 
 DecoderVideo *CreateDecoderVideo(DECODER_TYPE decoderType) {
