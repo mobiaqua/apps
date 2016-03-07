@@ -36,7 +36,25 @@ DecoderVideoLibDCE::~DecoderVideoLibDCE() {
 
 bool DecoderVideoLibDCE::isCapable(Demuxer *demuxer) {
 	if (demuxer == nullptr) {
-		log->printf("DecoderVideoLibAV::isCapable(): demuxer is NULL\n");
+		log->printf("DecoderVideoLibDCE::isCapable(): demuxer is NULL\n");
+		return false;
+	}
+
+	StreamVideoInfo info;
+	if (demuxer->getVideoStreamInfo(info) != S_OK) {
+		log->printf("DecoderVideoLibDCE::isCapable(): demuxer->getVideoStreamInfo() failed\n");
+		return false;
+	}
+
+	switch (info.codecId) {
+	case CODEC_ID_MPEG1VIDEO:
+	case CODEC_ID_MPEG2VIDEO:
+	case CODEC_ID_MPEG4:
+	case CODEC_ID_WMV3:
+	case CODEC_ID_VC1:
+	case CODEC_ID_H264:
+		return false/*true*/;
+	default:
 		return false;
 	}
 

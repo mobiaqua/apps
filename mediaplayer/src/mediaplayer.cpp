@@ -156,10 +156,12 @@ int Player(int argc, char *argv[]) {
 
 			if (display->putImage(&outputFrame) == S_FAIL) {
 				log->printf("Failed configure display!\n");
+				break;
 			}
 
 			if (display->flip() == S_FAIL) {
 				log->printf("Failed flip display!\n");
+				break;
 			}
 		}
 	}
