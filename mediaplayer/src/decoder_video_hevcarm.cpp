@@ -19,35 +19,44 @@
  *
  */
 
-#include <assert.h>
-
 #include "basetypes.h"
-#include "avtypes.h"
+#include "logs.h"
 #include "decoder_video_base.h"
-#include "decoder_video_libav.h"
-#include "decoder_video_libdce.h"
-#include "decoder_video_codecengine.h"
 #include "decoder_video_hevcarm.h"
 
 namespace MediaPLayer {
 
-DecoderVideo::DecoderVideo() :
-		_initialized(false), _bpp(0) {
-};
+DecoderVideoHEVCArm::DecoderVideoHEVCArm() {
+	_bpp = 2;
+}
 
-DecoderVideo *CreateDecoderVideo(DECODER_TYPE decoderType) {
-	switch (decoderType) {
-	case DECODER_LIBAV:
-		return new DecoderVideoLibAV();
-	case DECODER_LIBDCE:
-		return new DecoderVideoLibDCE();
-	case DECODER_CODEC_ENGINE:
-		return new DecoderVideoCodecEngine();
-	case DECODER_HEVC_ARM:
-		return new DecoderVideoHEVCArm();
-	default:
-		return nullptr;
+DecoderVideoHEVCArm::~DecoderVideoHEVCArm() {
+	deinit();
+}
+
+bool DecoderVideoHEVCArm::isCapable(Demuxer *demuxer) {
+	if (demuxer == nullptr) {
+		log->printf("DecoderVideoHEVCArm::isCapable(): demuxer is NULL\n");
+		return false;
 	}
+
+	return false;
+}
+
+STATUS DecoderVideoHEVCArm::init(Demuxer *demuxer) {
+	return S_OK;
+}
+
+STATUS DecoderVideoHEVCArm::deinit() {
+	return S_OK;
+}
+
+STATUS DecoderVideoHEVCArm::decodeFrame(bool &frameReady, U8 *data, U32 dataSize) {
+	return S_OK;
+}
+
+STATUS DecoderVideoHEVCArm::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame) {
+	return S_OK;
 }
 
 } // namespace

@@ -19,35 +19,25 @@
  *
  */
 
-#include <assert.h>
+#ifndef DECODER_VIDEO_HEVCARM_H
+#define DECODER_VIDEO_HEVCARM_H
 
 #include "basetypes.h"
-#include "avtypes.h"
-#include "decoder_video_base.h"
-#include "decoder_video_libav.h"
-#include "decoder_video_libdce.h"
-#include "decoder_video_codecengine.h"
-#include "decoder_video_hevcarm.h"
 
 namespace MediaPLayer {
 
-DecoderVideo::DecoderVideo() :
-		_initialized(false), _bpp(0) {
+class DecoderVideoHEVCArm : public DecoderVideo {
+public:
+	DecoderVideoHEVCArm();
+	~DecoderVideoHEVCArm();
+
+	bool isCapable(Demuxer *demuxer);
+	STATUS init(Demuxer *demuxer);
+	STATUS deinit();
+	STATUS decodeFrame(bool &frameReady, U8 *data, U32 dataSize);
+	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame);
 };
 
-DecoderVideo *CreateDecoderVideo(DECODER_TYPE decoderType) {
-	switch (decoderType) {
-	case DECODER_LIBAV:
-		return new DecoderVideoLibAV();
-	case DECODER_LIBDCE:
-		return new DecoderVideoLibDCE();
-	case DECODER_CODEC_ENGINE:
-		return new DecoderVideoCodecEngine();
-	case DECODER_HEVC_ARM:
-		return new DecoderVideoHEVCArm();
-	default:
-		return nullptr;
-	}
-}
-
 } // namespace
+
+#endif
