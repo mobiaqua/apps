@@ -148,13 +148,13 @@ int Player(int argc, char *argv[]) {
 		}
 
 		if (frameReady) {
-			VideoFrame outputFrame;
-			if (decoderVideo->getVideoStreamOutputFrame(demuxer, &outputFrame) != S_OK) {
+			VideoFrame *outputFrame = new VideoFrame();
+			if (decoderVideo->getVideoStreamOutputFrame(demuxer, outputFrame) != S_OK) {
 				log->printf("Failed get decoded frame!\n");
 				break;
 			}
 
-			if (display->putImage(&outputFrame) == S_FAIL) {
+			if (display->putImage(outputFrame) == S_FAIL) {
 				log->printf("Failed configure display!\n");
 				break;
 			}
@@ -163,6 +163,7 @@ int Player(int argc, char *argv[]) {
 				log->printf("Failed flip display!\n");
 				break;
 			}
+			delete outputFrame;
 		}
 	}
 
