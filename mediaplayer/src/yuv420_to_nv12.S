@@ -1,4 +1,5 @@
 /*
+    Copyright (C) 2011 Pawel Kolodziejski
     Copyright (C) 2008 Mans Rullgard
 
     Permission is hereby granted, free of charge, to any person
