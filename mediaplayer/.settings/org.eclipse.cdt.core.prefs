@@ -1,6 +1,6 @@
 eclipse.preferences.version=1
 environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/OE_BASE/delimiter=\:
-environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/OE_BASE/operation=append
+environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/OE_BASE/operation=replace
 environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/OE_BASE/value=${ProjDirPath}/../../oe/build-mobiaqua-tv/tmp/sysroots
 environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/PATH/delimiter=\:
 environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/PATH/operation=replace
