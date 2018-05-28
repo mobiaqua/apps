@@ -24,6 +24,13 @@
 
 #include <linux/fb.h>
 
+#ifdef __cplusplus
+extern "C"
+{
+    #include <libswscale/swscale.h>
+}
+#endif
+
 #include "basetypes.h"
 
 namespace MediaPLayer {
@@ -40,6 +47,7 @@ private:
 	U32                         _fbWidth, _fbHeight;
 	U32                         _dstX, _dstY;
 	U32                         _dstWidth, _dstHeight;
+	SwsContext                 *scaleCtx;
 
 public:
 

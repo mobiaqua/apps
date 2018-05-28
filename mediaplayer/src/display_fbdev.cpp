@@ -32,7 +32,6 @@
 
 #include "display_base.h"
 #include "display_fbdev.h"
-#include "yuv420.h"
 #include "logs.h"
 
 namespace MediaPLayer {
@@ -40,7 +39,7 @@ namespace MediaPLayer {
 DisplayFBDev::DisplayFBDev() :
 		_fd(-1), _fbPtr(nullptr), _fbSize(0), _fbStride(0),
 		_fbWidth(0), _fbHeight(0), _dstX(0), _dstY(0),
-		_dstWidth(0), _dstHeight(0) {
+		_dstWidth(0), _dstHeight(0), scaleCtx(NULL) {
 }
 
 DisplayFBDev::~DisplayFBDev() {
@@ -117,6 +116,7 @@ STATUS DisplayFBDev::internalInit() {
 	}
 
 	memset(_fbPtr, 0, _fbSize);
+	scaleCtx = NULL;
 
 	_initialized = true;
 	return S_OK;
@@ -138,6 +138,11 @@ void DisplayFBDev::internalDeinit() {
 
 	if (_fd != -1)
 		close(_fd);
+
+	if (!scaleCtx) {
+		sws_freeContext(scaleCtx);
+		scaleCtx = NULL;
+	}
 
 	_initialized = false;
 }
@@ -165,29 +170,29 @@ fail:
 }
 
 STATUS DisplayFBDev::putImage(VideoFrame *frame) {
-	U32 x, y;
+	U32 dstX = (_dstWidth - frame->width) / 2;
+	U32 dstY = (_dstHeight - frame->height) / 2;
 
 	if (frame == nullptr || frame->data[0] == nullptr) {
 		log->printf("DisplayFBDev::putImage(): Bad arguments!\n");
 		goto fail;
 	}
 
-	if (frame->pixelfmt == FMT_ARGB) {
-		for (y = 0; y < _dstHeight; y++) {
-			memcpy(_fbPtr + (_fbStride * (_dstY + y)) + _dstX * 4, frame->data[0] + y, frame->stride[0]);
-		}
-	} else if (frame->pixelfmt == FMT_RGB24) {
-		for (y = 0; y < _dstHeight; y++) {
-			U8 *ptr = _fbPtr + (_fbStride * (_dstY + y)) + _dstX * 4;
-			for (x = 0; x < _dstHeight; x++) {
-				ptr[(x * 4) + 0] = frame->data[0][(x * 3) + 0];
-				ptr[(x * 4) + 1] = frame->data[0][(x * 3) + 1];
-				ptr[(x * 4) + 2] = frame->data[0][(x * 3) + 2];
+	if (frame->pixelfmt == FMT_YUV420P) {
+		uint8_t *srcPtr[4] = { frame->data[0], frame->data[1], frame->data[2], NULL };
+		int srcStride[4] = { (int)frame->stride[0], (int)frame->stride[1], (int)frame->stride[2], 0 };
+		uint8_t *dstPtr[4] = { _fbPtr + _fbStride * dstY + dstX * 4, NULL, NULL, NULL };
+		int dstStride[4] = { (int)_fbStride, 0, 0, 0 };
+
+		if (!scaleCtx) {
+			scaleCtx = sws_getContext(frame->width, frame->height, AV_PIX_FMT_YUV420P, frame->width, frame->height,
+										AV_PIX_FMT_RGB32, SWS_POINT, NULL, NULL, NULL);
+			if (!scaleCtx) {
+				log->printf("DisplayFBDev::putImage(): Can not create scale context!\n");
+				goto fail;
 			}
 		}
-	} else if (frame->pixelfmt == FMT_YUV420P) {
-		//yuv420_to_rgba_open();
-		//yuv420_to_rgba_convert();
+		sws_scale(scaleCtx, srcPtr, srcStride, 0, frame->height, dstPtr, dstStride);
 	} else {
 		log->printf("DisplayFBDev::putImage(): Can not handle pixel format!\n");
 		goto fail;

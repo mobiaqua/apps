@@ -32,6 +32,11 @@
 #include "decoder_video_base.h"
 #include "decoder_audio_base.h"
 
+extern "C" {
+#include <libavformat/avformat.h>
+#include <libavcodec/avcodec.h>
+}
+
 namespace MediaPLayer {
 
 #define DISPLAY_WIDTH	1920
@@ -65,7 +70,6 @@ int Player(int argc, char *argv[]) {
 		goto end;
 	}
 
-
 	display = CreateDisplay(DISPLAY_FBDEV);
 	if (display == nullptr) {
 		log->printf("Failed get handle to fbdev display!\n");
@@ -97,8 +101,7 @@ int Player(int argc, char *argv[]) {
 		goto end;
 	}
 	if (demuxer->selectAudioStream(-1) == S_FAIL) {
-		log->printf("Failed select audio stream by demuxer!\n");
-		goto end;
+		log->printf("No audio stream!\n");
 	}
 
 	decoderVideo = CreateDecoderVideo(DECODER_LIBDCE);
@@ -140,21 +143,24 @@ int Player(int argc, char *argv[]) {
 	}
 
 	StreamFrame inputFrame;
-	while (demuxer->readNextFrame(inputFrame) == S_OK) {
-		bool frameReady;
-		if (decoderVideo->decodeFrame(frameReady, inputFrame.videoFrame.data, inputFrame.videoFrame.dataSize) != S_OK) {
-			log->printf("Failed decode frame!\n");
-			break;
+	while (demuxer->readNextFrame(&inputFrame) == S_OK) {
+		bool frameReady = false;
+		if (inputFrame.videoFrame.data != nullptr) {
+			if (decoderVideo->decodeFrame(frameReady, &inputFrame) != S_OK) {
+				log->printf("Failed decode frame!\n");
+				break;
+			}
 		}
 
 		if (frameReady) {
-			VideoFrame *outputFrame = new VideoFrame();
-			if (decoderVideo->getVideoStreamOutputFrame(demuxer, outputFrame) != S_OK) {
+			VideoFrame outputFrame;
+			memset(&outputFrame, 0, sizeof(VideoFrame));
+			if (decoderVideo->getVideoStreamOutputFrame(demuxer, &outputFrame) != S_OK) {
 				log->printf("Failed get decoded frame!\n");
 				break;
 			}
 
-			if (display->putImage(outputFrame) == S_FAIL) {
+			if (display->putImage(&outputFrame) == S_FAIL) {
 				log->printf("Failed configure display!\n");
 				break;
 			}
@@ -163,10 +169,8 @@ int Player(int argc, char *argv[]) {
 				log->printf("Failed flip display!\n");
 				break;
 			}
-			delete outputFrame;
 		}
 	}
-
 
 end:
 	delete decoderVideo;

@@ -36,10 +36,10 @@ private:
 	AVFormatContext            *_afc;
 	AVStream                   *_videoStream;
 	AVStream                   *_audioStream;
-	AVBitStreamFilterContext   *_bsf;
 	S64                         _pts;
 	AVPacket                    _packedFrame;
 	StreamVideoInfo 			_videoStreamInfo;
+	AVBSFContext               *_bsf;
 
 public:
 	DemuxerLibAV();
@@ -52,9 +52,8 @@ public:
 	virtual STATUS selectVideoStream();
 	virtual STATUS selectAudioStream(S32 index_audio);
 	virtual STATUS seekFrame(float seek, U32 flags);
-	virtual STATUS readNextFrame(StreamFrame &frame);
-	virtual STATUS getVideoStreamInfo(StreamVideoInfo &info);
-	virtual STATUS getVideoStreamExtraData(U32 &size, U8 **data);
+	virtual STATUS readNextFrame(StreamFrame *frame);
+	virtual STATUS getVideoStreamInfo(StreamVideoInfo *info);
 };
 
 } // namespace

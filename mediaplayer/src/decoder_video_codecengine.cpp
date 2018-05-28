@@ -50,11 +50,11 @@ STATUS DecoderVideoCodecEngine::deinit() {
 	return S_OK;
 }
 
-STATUS DecoderVideoCodecEngine::decodeFrame(bool &frameReady, U8 *data, U32 dataSize) {
+STATUS DecoderVideoCodecEngine::decodeFrame(bool &frameReady, StreamFrame *streamFrame) {
 	return S_OK;
 }
 
-STATUS DecoderVideoCodecEngine::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame) {
+STATUS DecoderVideoCodecEngine::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame) {
 	return S_OK;
 }
 

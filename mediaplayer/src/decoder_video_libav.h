@@ -34,9 +34,9 @@ class DecoderVideoLibAV : public DecoderVideo {
 private:
 
 	AVCodecContext       *_avc;
-	AVCodec              *_codec;
-	AVFrame              *_frame;
-	AVPacket              _packet;
+	AVCodec              *_avcodec;
+	AVFrame              *_avframe;
+	AVBSFContext         *_bsfc;
 
 public:
 
@@ -46,8 +46,8 @@ public:
 	bool isCapable(Demuxer *demuxer);
 	STATUS init(Demuxer *demuxer);
 	STATUS deinit();
-	STATUS decodeFrame(bool &frameReady, U8 *data, U32 dataSize);
-	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame);
+	STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame);
+	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame);
 };
 
 } // namespace

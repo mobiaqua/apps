@@ -30,6 +30,8 @@ namespace MediaPLayer {
 #define SEEK_BY_PERCENT  1
 #define SEEK_BY_TIME     2
 
+#pragma pack(1)
+
 typedef struct {
 	U8      *data;
 	U32      dataSize;
@@ -40,11 +42,13 @@ typedef struct {
 typedef struct {
 	U8      *data;
 	U32      dataSize;
+	void    *priv; // used for non API purposes
 } StreamAudioFrame;
 
 typedef struct {
 	StreamVideoFrame      videoFrame;
 	StreamAudioFrame      audioFrame;
+	void                 *priv; // used for non API purposes
 } StreamFrame;
 
 typedef struct {
@@ -54,7 +58,15 @@ typedef struct {
 	U32          height;
 	U32          timeBaseScale;
 	U32          timeBaseRate;
+	void        *priv; // used for non API purposes
 } StreamVideoInfo;
+
+typedef struct {
+	CODEC_ID     codecId;
+	void        *priv; // used for non API purposes
+} StreamAudioInfo;
+
+#pragma pack()
 
 class Demuxer {
 protected:
@@ -74,9 +86,8 @@ public:
 	virtual STATUS selectVideoStream() = 0;
 	virtual STATUS selectAudioStream(S32 index_audio) = 0;
 	virtual STATUS seekFrame(float seek, U32 flags) = 0;
-	virtual STATUS readNextFrame(StreamFrame &frame) = 0;
-	virtual STATUS getVideoStreamInfo(StreamVideoInfo &info) = 0;
-	virtual STATUS getVideoStreamExtraData(U32 &size, U8 **data) = 0;
+	virtual STATUS readNextFrame(StreamFrame *frame) = 0;
+	virtual STATUS getVideoStreamInfo(StreamVideoInfo *info) = 0;
 };
 
 Demuxer *CreateDemuxer(DEMUXER_TYPE demuxerType);

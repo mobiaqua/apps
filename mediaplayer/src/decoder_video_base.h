@@ -28,13 +28,17 @@
 
 namespace MediaPLayer {
 
+#pragma pack(1)
+
 typedef struct {
-	U8 *data[4];
-	U32 stride[4];
-	FORMAT_VIDEO pixelfmt;
+	U8 *data[4]; // array of pointers for video planes
+	U32 stride[4]; // array of widths of video planes in bytes
+	FORMAT_VIDEO pixelfmt; // pixel format of decoded video frame
 	U32 width, height; // target aligned width and height
 	U32 dx, dy, dw, dh; // border of decoded frame data
 } VideoFrame;
+
+#pragma pack()
 
 class DecoderVideo {
 protected:
@@ -50,8 +54,8 @@ public:
 	virtual bool isCapable(Demuxer *demuxer) = 0;
 	virtual STATUS init(Demuxer *demuxer) = 0;
 	virtual STATUS deinit() = 0;
-	virtual STATUS decodeFrame(bool &frameReady, U8 *data, U32 dataSize) = 0;
-	virtual STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame) = 0;
+	virtual STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame) = 0;
+	virtual STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame) = 0;
 	U32 getBPP() { return _bpp; }
 };
 

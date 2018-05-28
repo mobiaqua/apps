@@ -34,8 +34,8 @@ public:
 	bool isCapable(Demuxer *demuxer);
 	STATUS init(Demuxer *demuxer);
 	STATUS deinit();
-	STATUS decodeFrame(bool &frameReady, U8 *data, U32 dataSize);
-	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame);
+	STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame);
+	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame);
 };
 
 } // namespace

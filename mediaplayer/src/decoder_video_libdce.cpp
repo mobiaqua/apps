@@ -41,7 +41,7 @@ bool DecoderVideoLibDCE::isCapable(Demuxer *demuxer) {
 	}
 
 	StreamVideoInfo info;
-	if (demuxer->getVideoStreamInfo(info) != S_OK) {
+	if (demuxer->getVideoStreamInfo(&info) != S_OK) {
 		log->printf("DecoderVideoLibDCE::isCapable(): demuxer->getVideoStreamInfo() failed\n");
 		return false;
 	}
@@ -69,11 +69,11 @@ STATUS DecoderVideoLibDCE::deinit() {
 	return S_OK;
 }
 
-STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, U8 *data, U32 dataSize) {
+STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, StreamFrame *streamFrame) {
 	return S_OK;
 }
 
-STATUS DecoderVideoLibDCE::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame) {
+STATUS DecoderVideoLibDCE::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame) {
 	return S_OK;
 }
 

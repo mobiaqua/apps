@@ -48,16 +48,12 @@ STATUS DemuxerLibAV::deinit() {
 }
 
 STATUS DemuxerLibAV::openFile(const char *filename) {
-	int err;
-
 	if (_initialized) {
 		log->printf("DemuxerLibAV::openFile(): demuxer is allready open!\n");
 		return S_FAIL;
 	}
 
-	av_register_all();
-
-	err = avformat_open_input(&_afc, filename, nullptr, nullptr);
+	int err = avformat_open_input(&_afc, filename, nullptr, nullptr);
 	if (err < 0) {
 		log->printf("DemuxerLibAV::openFile(): avformat_open_input error %d\n", err);
 		return S_FAIL;
@@ -71,30 +67,22 @@ STATUS DemuxerLibAV::openFile(const char *filename) {
 
 	av_dump_format(_afc, 0, filename, 0);
 
-	av_init_packet(&_packedFrame);
-
 	_initialized = true;
 	return S_OK;
 }
 
 void DemuxerLibAV::closeFile() {
 	if (_initialized) {
-		log->printf("DemuxerLibAV::closeFile(): demuxer allready closed!\n");
 		return;
 	}
 
-	if (_bsf && _streamFrame.videoFrame.data) {
+	if (_streamFrame.videoFrame.data) {
 		av_free(_streamFrame.videoFrame.data);
 		_streamFrame.videoFrame.data = nullptr;
 	}
 
 	av_packet_unref(&_packedFrame);
 	avformat_close_input(&_afc);
-
-	if (_bsf) {
-		av_bitstream_filter_close(_bsf);
-		_bsf = nullptr;
-	}
 }
 
 STATUS DemuxerLibAV::selectVideoStream() {
@@ -104,39 +92,115 @@ STATUS DemuxerLibAV::selectVideoStream() {
 	}
 
 	for (U32 i = 0; i < _afc->nb_streams; i++) {
-		if (_afc->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-			_videoStream = _afc->streams[i];
-			AVCodecContext *cc = _videoStream->codec;
+		AVStream *stream = _afc->streams[i];
+		AVCodec *codec = avcodec_find_decoder(stream->codecpar->codec_id);
+		if (codec == NULL) {
+			log->printf("DemuxerLibAV::selectVideoStream(): avcodec_find_decoder failed!\n");
+			return S_FAIL;
+		}
+		AVCodecContext *cc = avcodec_alloc_context3(codec);
+		if (cc == NULL) {
+			log->printf("DemuxerLibAV::selectVideoStream(): avcodec_alloc_context3 failed!\n");
+			return S_FAIL;
+		}
+		if (avcodec_parameters_to_context(cc, stream->codecpar) < 0) {
+			log->printf("DemuxerLibAV::selectVideoStream(): avcodec_alloc_context3 failed!\n");
+			avcodec_free_context(&cc);
+			return S_FAIL;
+		}
+		if (cc->codec_type == AVMEDIA_TYPE_VIDEO) {
+			_videoStream = stream;
 			if (cc->codec_id == AV_CODEC_ID_H264) {
 				if (cc->extradata && cc->extradata_size >= 8 && cc->extradata[0] == 1) {
-					_bsf = av_bitstream_filter_init("h264_mp4toannexb");
-					if (_bsf == nullptr) {
-						log->printf("DemuxerLibAV::selectVideoStream(): av_bitstream_filter_init failed!\n");
+					const AVBitStreamFilter *bsf = av_bsf_get_by_name("h264_mp4toannexb");
+					if (bsf == nullptr) {
+						log->printf("DemuxerLibAV::selectVideoStream(): av_bsf_get_by_name failed!\n");
+						avcodec_free_context(&cc);
+						return S_FAIL;
+					}
+				    if (av_bsf_alloc(bsf, &_bsf) < 0) {
+						log->printf("DemuxerLibAV::selectVideoStream(): av_bsf_alloc failed!\n");
+						avcodec_free_context(&cc);
+						return S_FAIL;
+					}
+				    if (avcodec_parameters_from_context(_bsf->par_in, cc) < 0)
+				    {
+						log->printf("DemuxerLibAV::selectVideoStream(): avcodec_parameters_from_context failed!\n");
+						av_bsf_free(&_bsf);
+						avcodec_free_context(&cc);
+						return S_FAIL;
+				    }
+				    _bsf->time_base_in = cc->time_base;
+					if (av_bsf_init(_bsf) < 0) {
+						log->printf("DemuxerLibAV::selectVideoStream(): av_bsf_init failed!\n");
+						av_bsf_free(&_bsf);
+						avcodec_free_context(&cc);
 						return S_FAIL;
 					}
 				}
 			} else if (cc->codec_id == AV_CODEC_ID_MPEG4) {
-				_bsf = av_bitstream_filter_init("mpeg4_unpack_bframes");
-				if (_bsf == nullptr) {
-					log->printf("DemuxerLibAV::selectVideoStream(): av_bitstream_filter_init failed!\n");
+				const AVBitStreamFilter *bsf = av_bsf_get_by_name("mpeg4_unpack_bframes");
+				if (bsf == nullptr) {
+					log->printf("DemuxerLibAV::selectVideoStream(): av_bsf_get_by_name failed!\n");
+					avcodec_free_context(&cc);
+					return S_FAIL;
+				}
+			    if (av_bsf_alloc(bsf, &_bsf) < 0) {
+					log->printf("DemuxerLibAV::selectVideoStream(): av_bsf_alloc failed!\n");
+					avcodec_free_context(&cc);
+					return S_FAIL;
+				}
+			    if (avcodec_parameters_from_context(_bsf->par_in, cc) < 0)
+			    {
+					log->printf("DemuxerLibAV::selectVideoStream(): avcodec_parameters_from_context failed!\n");
+					av_bsf_free(&_bsf);
+					avcodec_free_context(&cc);
+					return S_FAIL;
+			    }
+			    _bsf->time_base_in = cc->time_base;
+				if (av_bsf_init(_bsf) < 0) {
+					log->printf("DemuxerLibAV::selectVideoStream(): av_bsf_init failed!\n");
+					av_bsf_free(&_bsf);
+					avcodec_free_context(&cc);
 					return S_FAIL;
 				}
 			} else if (cc->codec_id == AV_CODEC_ID_HEVC) {
 				if (cc->extradata && cc->extradata_size >= 8 && cc->extradata[0] == 1) {
-					_bsf = av_bitstream_filter_init("hevc_mp4toannexb");
-					if (_bsf == nullptr) {
+					const AVBitStreamFilter *bsf = av_bsf_get_by_name("hevc_mp4toannexb");
+					if (bsf == nullptr) {
 						log->printf("DemuxerLibAV::selectVideoStream(): av_bitstream_filter_init failed!\n");
+						avcodec_free_context(&cc);
+						return S_FAIL;
+					}
+				    if (av_bsf_alloc(bsf, &_bsf) < 0) {
+						log->printf("DemuxerLibAV::selectVideoStream(): av_bsf_alloc failed!\n");
+						avcodec_free_context(&cc);
+						return S_FAIL;
+					}
+				    if (avcodec_parameters_from_context(_bsf->par_in, cc) < 0)
+				    {
+						log->printf("DemuxerLibAV::selectVideoStream(): avcodec_parameters_from_context failed!\n");
+						av_bsf_free(&_bsf);
+						avcodec_free_context(&cc);
+						return S_FAIL;
+				    }
+				    _bsf->time_base_in = cc->time_base;
+					if (av_bsf_init(_bsf) < 0) {
+						log->printf("DemuxerLibAV::selectVideoStream(): av_bsf_init failed!\n");
+						av_bsf_free(&_bsf);
+						avcodec_free_context(&cc);
 						return S_FAIL;
 					}
 				}
 			}
 
-			_videoStreamInfo.width = (U32)_videoStream->codec->width;
-			_videoStreamInfo.height = (U32)_videoStream->codec->height;
-			_videoStreamInfo.timeBaseScale = (U32)_videoStream->codec->time_base.num;
-			_videoStreamInfo.timeBaseRate = (U32)_videoStream->codec->time_base.den;
+			_videoStreamInfo.width = (U32)cc->width;
+			_videoStreamInfo.height = (U32)cc->height;
+			_videoStreamInfo.timeBaseScale = (U32)cc->time_base.num;
+			_videoStreamInfo.timeBaseRate = (U32)cc->time_base.den;
+			_videoStreamInfo.priv = cc;
 
-			switch (_videoStream->codec->codec_id) {
+			switch (cc->codec_id) {
 			case AV_CODEC_ID_MPEG1VIDEO:
 				_videoStreamInfo.codecId = CODEC_ID_MPEG1VIDEO;
 				break;
@@ -245,11 +309,12 @@ STATUS DemuxerLibAV::selectVideoStream() {
 			default:
 				_videoStreamInfo.codecId = CODEC_ID_NONE;
 				log->printf("DemuxerLibAV::selectVideoStream(): Unknown codec: 0x%08x!\n",
-						_videoStream->codec->codec_id);
+						cc->codec_id);
+				avcodec_free_context(&cc);
 				return S_FAIL;
 			}
 
-			switch (_videoStream->codec->pix_fmt) {
+			switch (cc->pix_fmt) {
 			case AV_PIX_FMT_RGB24:
 				_videoStreamInfo.pixelfmt = FMT_RGB24;
 				break;
@@ -270,7 +335,8 @@ STATUS DemuxerLibAV::selectVideoStream() {
 				break;
 			default:
 				_videoStreamInfo.pixelfmt = FMT_NONE;
-				log->printf("DemuxerLibAV::selectVideoStream(): Unknown pixel format: 0x%08x!\n", _videoStream->codec->pix_fmt);
+				log->printf("DemuxerLibAV::selectVideoStream(): Unknown pixel format: 0x%08x!\n", cc->pix_fmt);
+				avcodec_free_context(&cc);
 				return S_FAIL;
 			}
 			return S_OK;
@@ -288,7 +354,23 @@ STATUS DemuxerLibAV::selectAudioStream(S32 index_audio) {
 
 	S32 count_audio = 0;
 	for (U32 i = 0; i < _afc->nb_streams; i++) {
-		if (_afc->streams[i]->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
+		AVStream *stream = _afc->streams[i];
+		AVCodec *codec = avcodec_find_decoder(stream->codecpar->codec_id);
+		if (codec == NULL) {
+			log->printf("DemuxerLibAV::selectAudioStream(): avcodec_find_decoder failed!\n");
+			return S_FAIL;
+		}
+		AVCodecContext *cc = avcodec_alloc_context3(codec);
+		if (cc == NULL) {
+			log->printf("DemuxerLibAV::selectAudioStream(): avcodec_alloc_context3 failed!\n");
+			return S_FAIL;
+		}
+		if (avcodec_parameters_to_context(cc, stream->codecpar) < 0) {
+			log->printf("DemuxerLibAV::selectAudioStream(): avcodec_alloc_context3 failed!\n");
+			avcodec_free_context(&cc);
+			return S_FAIL;
+		}
+		if (cc->codec_type == AVMEDIA_TYPE_AUDIO) {
 			if (count_audio++ == index_audio || index_audio == -1) {
 				_audioStream = _afc->streams[i];
 				return S_OK;
@@ -315,7 +397,7 @@ STATUS DemuxerLibAV::seekFrame(float seek, U32 flags) {
 			log->printf("DemuxerLibAV::seekFrame(SEEK_BY_PERCENT): wrong range of seek: %f!\n", seek);
 			return S_FAIL;
 		}
-		_pts += (seek / 100) * _afc->duration;
+		_pts += (seek / 100.0) * _afc->duration;
 	} else if (flags & SEEK_BY_TIME) {
 		if (_afc->start_time != (int64_t)AV_NOPTS_VALUE) {
 			_pts = _afc->start_time;
@@ -342,53 +424,58 @@ STATUS DemuxerLibAV::seekFrame(float seek, U32 flags) {
 	return S_OK;
 }
 
-STATUS DemuxerLibAV::readNextFrame(StreamFrame &frame) {
+STATUS DemuxerLibAV::readNextFrame(StreamFrame *frame) {
 	if (!_initialized) {
 		log->printf("DemuxerLibAV::getNextFrame(): demuxer not opened!\n");
 		return S_FAIL;
 	}
 
-	if (_bsf && _streamFrame.videoFrame.data) {
+	if (_streamFrame.videoFrame.data) {
 		av_free(_streamFrame.videoFrame.data);
-		_streamFrame.videoFrame.data = nullptr;
+	}
+	if (_streamFrame.audioFrame.data) {
+		av_free(_streamFrame.audioFrame.data);
 	}
 
-	_streamFrame.videoFrame.data = nullptr;
-	_streamFrame.videoFrame.dataSize = 0;
+	memset(&_streamFrame, 0, sizeof(StreamFrame));
 
 	if (av_read_frame(_afc, &_packedFrame) == 0) {
 		if (_packedFrame.stream_index == _videoStream->index) {
 			if (_bsf) {
-				int err = av_bitstream_filter_filter(_bsf, _videoStream->codec,
-						nullptr, &_streamFrame.videoFrame.data, (S32 *)&_streamFrame.videoFrame.dataSize,
-						_packedFrame.data, _packedFrame.size, 0);
-				if (err < 0) {
-					log->printf("DemuxerLibAV::getNextFrame(): av_bitstream_filter_filter failed!\n");
+				if (av_bsf_send_packet(_bsf, &_packedFrame) < 0) {
+					log->printf("DemuxerLibAV::getNextFrame(): av_bsf_send_packet failed!\n");
+					av_packet_unref(&_packedFrame);
 					return S_FAIL;
 				}
-			} else {
-				_streamFrame.videoFrame.pts = _packedFrame.pts * av_q2d(_videoStream->time_base);
-				_streamFrame.videoFrame.keyFrame = (_packedFrame.flags & AV_PKT_FLAG_KEY) != 0;
-				_streamFrame.videoFrame.dataSize = _packedFrame.size;
-				_streamFrame.videoFrame.data = (U8 *)malloc(_packedFrame.size);
-				memcpy(_streamFrame.videoFrame.data, _packedFrame.data, _packedFrame.size);
-				av_packet_unref(&_packedFrame);
+				if (av_bsf_receive_packet(_bsf, &_packedFrame) < 0) {
+					log->printf("DemuxerLibAV::getNextFrame(): av_bsf_receive_packet failed!\n");
+					av_packet_unref(&_packedFrame);
+					return S_FAIL;
+				}
 			}
-			memcpy(&frame, &_streamFrame, sizeof(StreamFrame));
-			return S_OK;
+			_streamFrame.videoFrame.pts = _packedFrame.pts * av_q2d(_videoStream->time_base);
+			_streamFrame.videoFrame.keyFrame = (_packedFrame.flags & AV_PKT_FLAG_KEY) != 0;
+			_streamFrame.videoFrame.dataSize = _packedFrame.size;
+			_streamFrame.videoFrame.data = (U8 *)av_malloc(_packedFrame.size + AV_INPUT_BUFFER_PADDING_SIZE);
+			memcpy(_streamFrame.videoFrame.data, _packedFrame.data, _packedFrame.size);
+			memset(_streamFrame.videoFrame.data + _packedFrame.size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+			_streamFrame.priv = &_packedFrame;
 		} else if (_packedFrame.stream_index == _audioStream->index) {
-			// TODO
-			memcpy(&frame, &_streamFrame, sizeof(StreamFrame));
-			return S_OK;
-		} else {
-			av_packet_unref(&_packedFrame);
+			_streamFrame.audioFrame.dataSize = _packedFrame.size;
+			_streamFrame.audioFrame.data = (U8 *)av_malloc(_packedFrame.size + AV_INPUT_BUFFER_PADDING_SIZE);
+			memcpy(_streamFrame.audioFrame.data, _packedFrame.data, _packedFrame.size);
+			memset(_streamFrame.audioFrame.data + _packedFrame.size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+			_streamFrame.priv = &_packedFrame;
 		}
+
+		memcpy(frame, &_streamFrame, sizeof(StreamFrame));
+		return S_OK;
 	}
 
 	return S_FAIL;
 }
 
-STATUS DemuxerLibAV::getVideoStreamInfo(StreamVideoInfo &info) {
+STATUS DemuxerLibAV::getVideoStreamInfo(StreamVideoInfo *info) {
 	if (!_initialized) {
 		log->printf("DemuxerLibAV::getVideoStreamInfo(): demuxer not opened!\n");
 		return S_FAIL;
@@ -398,24 +485,7 @@ STATUS DemuxerLibAV::getVideoStreamInfo(StreamVideoInfo &info) {
 		return S_FAIL;
 	}
 
-	memcpy(&info, &_videoStreamInfo, sizeof(StreamVideoInfo));
-
-	return S_OK;
-}
-
-STATUS DemuxerLibAV::getVideoStreamExtraData(U32 &size, U8 **data) {
-	if (!_initialized) {
-		log->printf("DemuxerLibAV::getVideoStreamExtraData(): demuxer not opened!\n");
-		return S_FAIL;
-	}
-
-	if (_videoStream == nullptr) {
-		log->printf("DemuxerLibAV::getVideoStreamExtraData(): video stream null!\n");
-		return S_FAIL;
-	}
-
-	size = (U32)_videoStream->codec->extradata_size;
-	*data = _videoStream->codec->extradata;
+	memcpy(info, &_videoStreamInfo, sizeof(StreamVideoInfo));
 
 	return S_OK;
 }

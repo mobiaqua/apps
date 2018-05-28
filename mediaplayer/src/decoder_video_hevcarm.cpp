@@ -51,11 +51,11 @@ STATUS DecoderVideoHEVCArm::deinit() {
 	return S_OK;
 }
 
-STATUS DecoderVideoHEVCArm::decodeFrame(bool &frameReady, U8 *data, U32 dataSize) {
+STATUS DecoderVideoHEVCArm::decodeFrame(bool &frameReady, StreamFrame *streamFrame) {
 	return S_OK;
 }
 
-STATUS DecoderVideoHEVCArm::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *frame) {
+STATUS DecoderVideoHEVCArm::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame) {
 	return S_OK;
 }
 
