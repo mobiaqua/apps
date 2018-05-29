@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013-2016 Pawel Kolodziejski <aquadran at users.sourceforge.net>
+ * Copyright (C) 2013-2018 Pawel Kolodziejski <aquadran at users.sourceforge.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -104,7 +104,7 @@ STATUS DemuxerLibAV::selectVideoStream() {
 			return S_FAIL;
 		}
 		if (avcodec_parameters_to_context(cc, stream->codecpar) < 0) {
-			log->printf("DemuxerLibAV::selectVideoStream(): avcodec_alloc_context3 failed!\n");
+			log->printf("DemuxerLibAV::selectVideoStream(): avcodec_parameters_to_context failed!\n");
 			avcodec_free_context(&cc);
 			return S_FAIL;
 		}
