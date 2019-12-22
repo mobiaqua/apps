@@ -46,15 +46,15 @@ public:
 	DemuxerLibAV();
 	virtual ~DemuxerLibAV();
 
-	virtual STATUS init();
-	virtual STATUS deinit();
-	virtual STATUS openFile(const char *filename);
-	virtual void closeFile();
-	virtual STATUS selectVideoStream();
-	virtual STATUS selectAudioStream(S32 index_audio);
-	virtual STATUS seekFrame(float seek, U32 flags);
-	virtual STATUS readNextFrame(StreamFrame *frame);
-	virtual STATUS getVideoStreamInfo(StreamVideoInfo *info);
+	STATUS init();
+	STATUS deinit();
+	STATUS openFile(const char *filename);
+	void closeFile();
+	STATUS selectVideoStream();
+	STATUS selectAudioStream(S32 index_audio);
+	STATUS seekFrame(float seek, U32 flags);
+	STATUS readNextFrame(StreamFrame *frame);
+	STATUS getVideoStreamInfo(StreamVideoInfo *info);
 };
 
 } // namespace

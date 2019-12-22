@@ -44,10 +44,10 @@ public:
 	DecoderAudioLibAV();
 	virtual ~DecoderAudioLibAV();
 
-	virtual bool isCapable(Demuxer *demuxer);
-	virtual STATUS init(Demuxer *demuxer);
-	virtual STATUS deinit();
-	virtual STATUS decodeFrame();
+	bool isCapable(Demuxer *demuxer);
+	STATUS init(Demuxer *demuxer);
+	STATUS deinit();
+	STATUS decodeFrame();
 };
 
 } // namespace

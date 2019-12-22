@@ -35,8 +35,8 @@ public:
 	AudioAlsa();
 	virtual ~AudioAlsa();
 
-	virtual STATUS init();
-	virtual STATUS deinit();
+	STATUS init();
+	STATUS deinit();
 };
 
 } // namespace

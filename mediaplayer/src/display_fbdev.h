@@ -55,16 +55,16 @@ public:
 	DisplayFBDev();
 	virtual ~DisplayFBDev();
 
-	virtual STATUS init();
-	virtual STATUS deinit();
-	virtual STATUS configure(U32 width, U32 height);
-	virtual STATUS putImage(VideoFrame *frame);
-	virtual STATUS flip();
+	STATUS init();
+	STATUS deinit();
+	STATUS configure(U32 width, U32 height);
+	STATUS putImage(VideoFrame *frame);
+	STATUS flip();
 
 private:
 
-	virtual STATUS internalInit();
-	virtual void internalDeinit();
+	STATUS internalInit();
+	void internalDeinit();
 };
 
 } // namespace

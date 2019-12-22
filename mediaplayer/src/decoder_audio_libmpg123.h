@@ -33,10 +33,10 @@ public:
 	DecoderAudioLibMPG123();
 	virtual ~DecoderAudioLibMPG123();
 
-	virtual bool isCapable(Demuxer *demuxer);
-	virtual STATUS init(Demuxer *demuxer);
-	virtual STATUS deinit();
-	virtual STATUS decodeFrame();
+	bool isCapable(Demuxer *demuxer);
+	STATUS init(Demuxer *demuxer);
+	STATUS deinit();
+	STATUS decodeFrame();
 };
 
 } // namespace
