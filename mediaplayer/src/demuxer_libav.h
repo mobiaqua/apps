@@ -44,7 +44,7 @@ private:
 
 public:
 	DemuxerLibAV();
-	virtual ~DemuxerLibAV();
+	~DemuxerLibAV();
 
 	STATUS init();
 	STATUS deinit();

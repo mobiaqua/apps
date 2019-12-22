@@ -53,7 +53,7 @@ private:
 public:
 
 	DisplayFBDev();
-	virtual ~DisplayFBDev();
+	~DisplayFBDev();
 
 	STATUS init();
 	STATUS deinit();

@@ -31,7 +31,7 @@ class DecoderAudioLibMPG123 : public DecoderAudio {
 public:
 
 	DecoderAudioLibMPG123();
-	virtual ~DecoderAudioLibMPG123();
+	~DecoderAudioLibMPG123();
 
 	bool isCapable(Demuxer *demuxer);
 	STATUS init(Demuxer *demuxer);

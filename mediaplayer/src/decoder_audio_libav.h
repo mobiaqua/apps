@@ -42,7 +42,7 @@ private:
 public:
 
 	DecoderAudioLibAV();
-	virtual ~DecoderAudioLibAV();
+	~DecoderAudioLibAV();
 
 	bool isCapable(Demuxer *demuxer);
 	STATUS init(Demuxer *demuxer);

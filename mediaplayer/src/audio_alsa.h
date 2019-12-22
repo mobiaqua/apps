@@ -33,7 +33,7 @@ class AudioAlsa : public Audio {
 public:
 
 	AudioAlsa();
-	virtual ~AudioAlsa();
+	~AudioAlsa();
 
 	STATUS init();
 	STATUS deinit();
