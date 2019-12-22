@@ -43,6 +43,6 @@ mediaplayer: $(OBJS)
 	$(CXX) $(CXXFLAGS) -MMD -c $< -o $*.o
 
 clean:
-	rm -f *.o *.d
+	rm -f src/*.o src/*.d
 
 -include $(DEPS)
