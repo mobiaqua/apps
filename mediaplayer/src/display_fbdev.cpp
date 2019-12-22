@@ -109,8 +109,8 @@ STATUS DisplayFBDev::internalInit() {
 	_fbStride = _finfo.line_length;
 	_fbWidth = _vinfo.xres;
 	_fbHeight = _vinfo.yres;
-	_fbPtr = (U8 *)mmap(0, _fbSize, PROT_READ | PROT_WRITE, MAP_SHARED, _fd, 0);
-	if (_fbPtr == (U8 *)-1) {
+	_fbPtr = static_cast<U8 *>(mmap(0, _fbSize, PROT_READ | PROT_WRITE, MAP_SHARED, _fd, 0));
+	if (_fbPtr == reinterpret_cast<void *>(-1)) {
 		log->printf("DisplayFBDev::internalInit(): Failed get frame buffer! %s\n", strerror(errno));
 		goto fail;
 	}
@@ -180,9 +180,11 @@ STATUS DisplayFBDev::putImage(VideoFrame *frame) {
 
 	if (frame->pixelfmt == FMT_YUV420P) {
 		uint8_t *srcPtr[4] = { frame->data[0], frame->data[1], frame->data[2], NULL };
-		int srcStride[4] = { (int)frame->stride[0], (int)frame->stride[1], (int)frame->stride[2], 0 };
+		int srcStride[4] = { static_cast<int>(frame->stride[0]),
+				static_cast<int>(frame->stride[1]),
+				static_cast<int>(frame->stride[2]), 0 };
 		uint8_t *dstPtr[4] = { _fbPtr + _fbStride * dstY + dstX * 4, NULL, NULL, NULL };
-		int dstStride[4] = { (int)_fbStride, 0, 0, 0 };
+		int dstStride[4] = { static_cast<int>(_fbStride), 0, 0, 0 };
 
 		if (!scaleCtx) {
 			scaleCtx = sws_getContext(frame->width, frame->height, AV_PIX_FMT_YUV420P, frame->width, frame->height,

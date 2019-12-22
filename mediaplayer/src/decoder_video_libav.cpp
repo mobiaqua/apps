@@ -110,7 +110,7 @@ STATUS DecoderVideoLibAV::init(Demuxer *demuxer) {
 		log->printf("DecoderVideoLibAV::init(): demuxer->getVideoStreamInfo() failed\n");
 		goto fail;
 	}
-	_avc = (AVCodecContext *)info.priv;
+	_avc = static_cast<AVCodecContext *>(info.priv);
 	if (_avc == nullptr) {
 		log->printf("DecoderVideoLibAV::init(): avcodec context NULL\n");
 		goto fail;
@@ -169,7 +169,7 @@ STATUS DecoderVideoLibAV::decodeFrame(bool &frameReady, StreamFrame *streamFrame
 	}
 
 	int status;
-	status = avcodec_send_packet(_avc, (AVPacket *)streamFrame->priv) != 0;
+	status = avcodec_send_packet(_avc, static_cast<AVPacket *>(streamFrame->priv)) != 0;
 	if (status != 0) {
 		log->printf("DecoderVideoLibAV::decodeFrame(): avcodec_send_packet failed, status: %d\n", status);
 		return S_FAIL;
