@@ -23,6 +23,7 @@
 #define AUDIO_ALSA_H
 
 #include "basetypes.h"
+#include "audio_base.h"
 
 namespace MediaPLayer {
 

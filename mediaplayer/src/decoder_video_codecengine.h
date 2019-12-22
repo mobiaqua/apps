@@ -23,6 +23,8 @@
 #define DECODER_VIDEO_CODECENGINE_H
 
 #include "basetypes.h"
+#include "demuxer_base.h"
+#include "decoder_video_base.h"
 
 namespace MediaPLayer {
 

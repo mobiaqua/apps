@@ -23,6 +23,7 @@
 #define DISPLAY_FBDEV_H
 
 #include <linux/fb.h>
+#include "display_base.h"
 
 #ifdef __cplusplus
 extern "C"

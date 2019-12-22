@@ -23,6 +23,7 @@
 #define DECODER_VIDEO_LIBAV_H
 
 #include "basetypes.h"
+#include "decoder_video_base.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>

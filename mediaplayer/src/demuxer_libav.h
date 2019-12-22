@@ -23,6 +23,7 @@
 #define DEMUXER_LIBAV_H
 
 #include "basetypes.h"
+#include "demuxer_base.h"
 
 extern "C" {
 #include <libavformat/avformat.h>

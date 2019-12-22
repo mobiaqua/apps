@@ -28,7 +28,7 @@ namespace MediaPLayer {
 
 DemuxerLibAV::DemuxerLibAV() :
 		_afc(nullptr), _videoStream(nullptr), _audioStream(nullptr),
-		_bsf(nullptr), _pts(0) {
+        _pts(0), _bsf(nullptr) {
 	memset(&_packedFrame, 0, sizeof(AVPacket));
 	memset(&_streamFrame, 0, sizeof(StreamFrame));
 }

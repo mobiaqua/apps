@@ -23,6 +23,7 @@
 #define DECODER_VIDEO_LIBDCE_H
 
 #include "basetypes.h"
+#include "decoder_video_base.h"
 
 namespace MediaPLayer {
 

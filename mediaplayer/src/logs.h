@@ -23,6 +23,7 @@
 #define LOGS_H
 
 #include <pthread.h>
+#include "basetypes.h"
 
 namespace MediaPLayer {
 

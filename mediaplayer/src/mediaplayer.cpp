@@ -21,7 +21,6 @@
 
 #include <unistd.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "basetypes.h"
 #include "avtypes.h"
@@ -153,8 +152,7 @@ int Player(int argc, char *argv[]) {
 		}
 
 		if (frameReady) {
-			VideoFrame outputFrame;
-			memset(&outputFrame, 0, sizeof(VideoFrame));
+			VideoFrame outputFrame{};
 			if (decoderVideo->getVideoStreamOutputFrame(demuxer, &outputFrame) != S_OK) {
 				log->printf("Failed get decoded frame!\n");
 				break;
