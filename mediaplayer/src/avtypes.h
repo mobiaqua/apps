@@ -41,6 +41,7 @@ typedef enum _DEMUXER_TYPE {
 typedef enum _DISPLAY_TYPE {
 	DISPLAY_NONE,
 	DISPLAY_FBDEV,
+	DISPLAY_OMAPDRM,
 } DISPLAY_TYPE;
 
 typedef enum _AUDIO_TYPE {

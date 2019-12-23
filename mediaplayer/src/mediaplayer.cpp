@@ -38,9 +38,6 @@ extern "C" {
 
 namespace MediaPLayer {
 
-#define DISPLAY_WIDTH	1920
-#define DISPLAY_HEIGHT	1080
-
 int Player(int argc, char *argv[]) {
 	int option;
 	const char *filename;
@@ -49,6 +46,7 @@ int Player(int argc, char *argv[]) {
 	Demuxer *demuxer = nullptr;
 	DecoderVideo *decoderVideo = nullptr;
 	DecoderAudio *decoderAudio = nullptr;
+	bool hwAccel = false;
 
 	if (CreateLogs() == S_FAIL)
 		goto end;
@@ -66,22 +64,6 @@ int Player(int argc, char *argv[]) {
 		log->printf("\ninput file: %s\n\n", filename);
 	} else {
 		log->printf("Missing filename param!\n");
-		goto end;
-	}
-
-	display = CreateDisplay(DISPLAY_FBDEV);
-	if (display == nullptr) {
-		log->printf("Failed get handle to fbdev display!\n");
-		goto end;
-	}
-	if (display->init() == S_FAIL) {
-		log->printf("Failed init display!\n");
-		goto end;
-	}
-
-	audio = CreateAudio(AUDIO_ALSA);
-	if (audio == nullptr) {
-		log->printf("Failed get handle to audio Alsa!\n");
 		goto end;
 	}
 
@@ -109,6 +91,8 @@ int Player(int argc, char *argv[]) {
 	} else if (!decoderVideo->isCapable(demuxer)) {
 		delete decoderVideo;
 		decoderVideo = nullptr;
+	} else {
+		hwAccel = true;
 	}
 	decoderVideo = CreateDecoderVideo(DECODER_LIBAV);
 	if (decoderVideo == nullptr) {
@@ -135,9 +119,32 @@ int Player(int argc, char *argv[]) {
 		goto end;
 	}
 
-
-	if (display->configure(DISPLAY_WIDTH, DISPLAY_HEIGHT) == S_FAIL) {
+	display = CreateDisplay(DISPLAY_OMAPDRM);
+	if (display == nullptr) {
+		log->printf("Failed get handle to OAMP DRM display!\n");
+		goto end;
+	}
+	if (display->init() == S_FAIL) {
+		log->printf("Failed init OMAP DRM display!\n");
+		delete display;
+		display = CreateDisplay(DISPLAY_FBDEV);
+		if (display == nullptr) {
+			log->printf("Failed get handle to FBDEV display!\n");
+			goto end;
+		}
+		if (display->init() == S_FAIL) {
+			log->printf("Failed init FBDEV display!\n");
+			goto end;
+		}
+	}
+	if (display->configure(decoderVideo->getVideoFmt(demuxer), 25) == S_FAIL) {
 		log->printf("Failed configure display!\n");
+		goto end;
+	}
+
+	audio = CreateAudio(AUDIO_ALSA);
+	if (audio == nullptr) {
+		log->printf("Failed get handle to audio Alsa!\n");
 		goto end;
 	}
 

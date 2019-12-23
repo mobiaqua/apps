@@ -38,8 +38,7 @@ namespace MediaPLayer {
 
 DisplayFBDev::DisplayFBDev() :
 		_fd(-1), _fbPtr(nullptr), _fbSize(0), _fbStride(0),
-		_fbWidth(0), _fbHeight(0), _dstX(0), _dstY(0),
-		_dstWidth(0), _dstHeight(0), scaleCtx(NULL) {
+		_fbWidth(0), _fbHeight(0), scaleCtx(NULL) {
 }
 
 DisplayFBDev::~DisplayFBDev() {
@@ -134,7 +133,10 @@ void DisplayFBDev::internalDeinit() {
 		return;
 
 	if (_fbPtr)
+	{
+		memset(_fbPtr, 0, _fbSize);
 		munmap(_fbPtr, _fbSize);
+	}
 
 	if (_fd != -1)
 		close(_fd);
@@ -147,31 +149,15 @@ void DisplayFBDev::internalDeinit() {
 	_initialized = false;
 }
 
-STATUS DisplayFBDev::configure(U32 width, U32 height) {
-	if (width <= 0 || height <= 0) {
-		log->printf("DisplayFBDev::configure(): Bad arguments!\n");
-		goto fail;
-	}
-
-	if (_vinfo.xres < width || _vinfo.yres < height) {
-		log->printf("DisplayFBDev::configure(): Given resulution is bigger than frame buffer resolution!\n");
-		goto fail;
-	}
-
-	_dstX = (_vinfo.xres - width) / 2;
-	_dstY = (_vinfo.yres - height) / 2;
-	_dstWidth = width;
-	_dstHeight = height;
+STATUS DisplayFBDev::configure(FORMAT_VIDEO /*videoFmt*/, int /*videoFps*/) {
+	// nothing
 
 	return S_OK;
-
-fail:
-	return S_FAIL;
 }
 
 STATUS DisplayFBDev::putImage(VideoFrame *frame) {
-	U32 dstX = (_dstWidth - frame->width) / 2;
-	U32 dstY = (_dstHeight - frame->height) / 2;
+	U32 dstX = (_fbWidth - frame->width) / 2;
+	U32 dstY = (_fbHeight - frame->height) / 2;
 
 	if (frame == nullptr || frame->data[0] == nullptr) {
 		log->printf("DisplayFBDev::putImage(): Bad arguments!\n");

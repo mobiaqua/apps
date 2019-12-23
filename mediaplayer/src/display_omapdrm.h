@@ -19,39 +19,47 @@
  *
  */
 
-#ifndef DISPLAY_FBDEV_H
-#define DISPLAY_FBDEV_H
+#ifndef DISPLAY_OMAPDRM_H
+#define DISPLAY_OMAPDRM_H
 
-#include <linux/fb.h>
 #include "display_base.h"
-
+#include "basetypes.h"
 #ifdef __cplusplus
 extern "C"
 {
-    #include <libswscale/swscale.h>
+	#include <libdrm/omap_drmif.h>
+	#include <libswscale/swscale.h>
 }
 #endif
-
-#include "basetypes.h"
+#include <xf86drmMode.h>
+#include <drm_fourcc.h>
 
 namespace MediaPLayer {
 
-class DisplayFBDev : public Display {
+class DisplayOmapDrm : public Display {
 private:
 
 	int                         _fd;
-	struct fb_var_screeninfo    _vinfo;
-	struct fb_fix_screeninfo    _finfo;
+	struct omap_device         *_omapDevice;
+	drmModeResPtr               _drmResources;
+	drmModePlaneResPtr          _drmPlaneResources;
+	drmModeCrtcPtr				_oldCrtc;
+	drmModeModeInfo             _modeInfo;
+	uint32_t                    _connectorId;
+	uint32_t					_crtcId;
+	uint32_t 					_boFlags;
 	U8                         *_fbPtr;
 	U32                         _fbSize;
 	U32                         _fbStride;
 	U32                         _fbWidth, _fbHeight;
+	U32                         _dstX, _dstY;
+	U32                         _dstWidth, _dstHeight;
 	SwsContext                 *scaleCtx;
 
 public:
 
-	DisplayFBDev();
-	~DisplayFBDev();
+	DisplayOmapDrm();
+	~DisplayOmapDrm();
 
 	STATUS init();
 	STATUS deinit();

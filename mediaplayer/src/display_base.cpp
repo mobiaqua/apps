@@ -24,6 +24,7 @@
 #include "basetypes.h"
 #include "display_base.h"
 #include "display_fbdev.h"
+#include "display_omapdrm.h"
 
 namespace MediaPLayer {
 
@@ -35,6 +36,8 @@ Display *CreateDisplay(DISPLAY_TYPE displayType) {
 	switch (displayType) {
 	case DISPLAY_FBDEV:
 		return new DisplayFBDev();
+	case DISPLAY_OMAPDRM:
+		return new DisplayOmapDrm();
 	default:
 		return nullptr;
 	}
