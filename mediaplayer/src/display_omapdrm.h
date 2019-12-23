@@ -41,6 +41,7 @@ private:
 
 	int                         _fd;
 	struct omap_device         *_omapDevice;
+	struct omap_bo             *_bo;
 	drmModeResPtr               _drmResources;
 	drmModePlaneResPtr          _drmPlaneResources;
 	drmModeCrtcPtr				_oldCrtc;
