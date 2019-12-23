@@ -49,6 +49,7 @@ public:
 	STATUS deinit();
 	STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame);
 	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame);
+	FORMAT_VIDEO getVideoFmt(Demuxer *demuxer);
 };
 
 } // namespace

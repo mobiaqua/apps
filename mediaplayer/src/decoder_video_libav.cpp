@@ -221,4 +221,15 @@ STATUS DecoderVideoLibAV::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame
 	return S_OK;
 }
 
+FORMAT_VIDEO DecoderVideoLibAV::getVideoFmt(Demuxer *demuxer)
+{
+	StreamVideoInfo info;
+	if (demuxer->getVideoStreamInfo(&info) != S_OK) {
+		log->printf("DecoderVideoLibAV::getVideoFmt(): demuxer->getVideoStreamInfo() failed\n");
+		return FMT_NONE;
+	}
+
+	return info.pixelfmt;
+}
+
 } // namespace

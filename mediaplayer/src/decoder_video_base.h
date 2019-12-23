@@ -57,6 +57,7 @@ public:
 	virtual STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame) = 0;
 	virtual STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame) = 0;
 	U32 getBPP() { return _bpp; }
+	virtual FORMAT_VIDEO getVideoFmt(Demuxer *demuxer) = 0;
 };
 
 DecoderVideo *CreateDecoderVideo(DECODER_TYPE decoderType);
