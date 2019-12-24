@@ -324,12 +324,6 @@ STATUS DemuxerLibAV::selectVideoStream() {
 			case AV_PIX_FMT_YUV420P:
 				_videoStreamInfo.pixelfmt = FMT_YUV420P;
 				break;
-			case AV_PIX_FMT_YUV422P:
-				_videoStreamInfo.pixelfmt = FMT_YUV422P;
-				break;
-			case AV_PIX_FMT_YUV444P:
-				_videoStreamInfo.pixelfmt = FMT_YUV444P;
-				break;
 			case AV_PIX_FMT_NV12:
 				_videoStreamInfo.pixelfmt = FMT_NV12;
 				break;

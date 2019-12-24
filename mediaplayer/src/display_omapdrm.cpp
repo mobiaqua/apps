@@ -245,7 +245,7 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps) {
 	handles[0] = omap_bo_handle(_bo);
 	pitches[0] = _modeInfo.hdisplay * (bpp / 8);
     int ret = drmModeAddFB2(_fd, _modeInfo.hdisplay, _modeInfo.vdisplay,
-    						DRM_FORMAT_XRGB8888,
+    						DRM_FORMAT_ARGB8888,
 							handles, pitches, offsets, &fbId, 0);
     if (ret < 0) {
 		log->printf("DisplayOmapDrm::configure(): failed add dumb buffer: %s\n", strerror(errno));
