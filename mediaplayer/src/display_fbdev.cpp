@@ -149,7 +149,8 @@ void DisplayFBDev::internalDeinit() {
 	_initialized = false;
 }
 
-STATUS DisplayFBDev::configure(FORMAT_VIDEO /*videoFmt*/, int /*videoFps*/) {
+STATUS DisplayFBDev::configure(FORMAT_VIDEO /*videoFmt*/, int /*videoFps*/,
+			int /*videoWidth*/, int /*videoHeight*/) {
 	// nothing
 
 	return S_OK;

@@ -232,4 +232,26 @@ FORMAT_VIDEO DecoderVideoLibAV::getVideoFmt(Demuxer *demuxer)
 	return info.pixelfmt;
 }
 
+int DecoderVideoLibAV::getVideoWidth(Demuxer *demuxer)
+{
+	StreamVideoInfo info;
+	if (demuxer->getVideoStreamInfo(&info) != S_OK) {
+		log->printf("DecoderVideoLibAV::getVideoWidth(): demuxer->getVideoStreamInfo() failed\n");
+		return 0;
+	}
+
+	return info.width;
+}
+
+int DecoderVideoLibAV::getVideoHeight(Demuxer *demuxer)
+{
+	StreamVideoInfo info;
+	if (demuxer->getVideoStreamInfo(&info) != S_OK) {
+		log->printf("DecoderVideoLibAV::getVideoHeight(): demuxer->getVideoStreamInfo() failed\n");
+		return 0;
+	}
+
+	return info.height;
+}
+
 } // namespace

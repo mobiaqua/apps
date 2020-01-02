@@ -137,7 +137,9 @@ int Player(int argc, char *argv[]) {
 			goto end;
 		}
 	}
-	if (display->configure(decoderVideo->getVideoFmt(demuxer), 25) == S_FAIL) {
+	if (display->configure(decoderVideo->getVideoFmt(demuxer), 25,
+						   decoderVideo->getVideoWidth(demuxer),
+						   decoderVideo->getVideoHeight(demuxer)) == S_FAIL) {
 		log->printf("Failed configure display!\n");
 		goto end;
 	}

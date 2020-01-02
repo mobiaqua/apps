@@ -50,6 +50,8 @@ public:
 	STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame);
 	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame);
 	FORMAT_VIDEO getVideoFmt(Demuxer *demuxer);
+	int getVideoWidth(Demuxer *demuxer);
+	int getVideoHeight(Demuxer *demuxer);
 };
 
 } // namespace

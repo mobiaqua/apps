@@ -65,4 +65,8 @@ extern "C"
 #define SIZE_OF_ARRAY(a)   ((int)(sizeof(a) / sizeof(a[0])))
 #endif
 
+#ifndef ALIGN2
+#define ALIGN2(value, align) (((value) + ((1 << (align)) - 1)) & ~((1 << (align)) - 1))
+#endif
+
 #endif

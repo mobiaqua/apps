@@ -64,7 +64,7 @@ public:
 
 	STATUS init();
 	STATUS deinit();
-	STATUS configure(FORMAT_VIDEO videoFmt, int videoFps);
+	STATUS configure(FORMAT_VIDEO videoFmt, int videoFps, int videoWidth, int videoHeight);
 	STATUS putImage(VideoFrame *frame);
 	STATUS flip();
 

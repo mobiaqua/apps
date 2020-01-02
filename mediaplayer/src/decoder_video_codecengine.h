@@ -39,6 +39,8 @@ public:
 	STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame);
 	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame);
 	FORMAT_VIDEO getVideoFmt(Demuxer * /*demuxer*/) { return FMT_YUV420P; }
+	int getVideoWidth(Demuxer *demuxer) { return 0; }
+	int getVideoHeight(Demuxer *demuxer) { return 0; }
 };
 
 } // namespace

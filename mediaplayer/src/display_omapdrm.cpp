@@ -173,7 +173,7 @@ void DisplayOmapDrm::internalDeinit() {
 	_initialized = false;
 }
 
-STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps) {
+STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoWidth, int videoHeight) {
 	int modeId = -1;
 	_crtcId = -1;
 

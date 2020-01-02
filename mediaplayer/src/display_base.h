@@ -40,7 +40,7 @@ public:
 
 	virtual STATUS init() = 0;
 	virtual STATUS deinit() = 0;
-	virtual STATUS configure(FORMAT_VIDEO videoFmt, int videoFps) = 0;
+	virtual STATUS configure(FORMAT_VIDEO videoFmt, int videoFps, int videoWidth, int videoHeight) = 0;
 	virtual STATUS putImage(VideoFrame *frame) = 0;
 	virtual STATUS flip() = 0;
 };
