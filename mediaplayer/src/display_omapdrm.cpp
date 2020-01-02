@@ -255,15 +255,18 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 	}
 
 	_planeId = -1;
-	for (int i = 0; i < connector->count_encoders; i++) {
+	_drmPlaneResources = drmModeGetPlaneResources(_fd);
+	for (int i = 0; i < _drmPlaneResources->count_planes; i++) {
 		drmModePlane *plane = drmModeGetPlane(_fd, _drmPlaneResources->planes[i]);
 		if (plane == nullptr)
 			continue;
-		if (plane->crtc_id != 0)
-			continue;
-		_planeId = plane->plane_id;
+		if (plane->crtc_id == 0)
+		{
+			_planeId = plane->plane_id;
+			drmModeFreePlane(plane);
+			break;
+		}
 		drmModeFreePlane(plane);
-		break;
 	}
 	if (_planeId == -1) {
 		log->printf("DisplayOmapDrm::configure(): Failed to find plane!\n");
@@ -339,6 +342,28 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 		return S_FAIL;
     }
 
+    drmModeObjectPropertiesPtr props = drmModeObjectGetProperties(_fd, _planeId, DRM_MODE_OBJECT_PLANE);
+	if (!props) {
+		log->printf("DisplayOmapDrm::configure(): Failed to find properties for plane!\n");
+		return S_FAIL;
+	}
+	for (int i = 0; i < props->count_props; i++) {
+		drmModePropertyPtr prop = drmModeGetProperty(_fd, props->props[i]);
+		if (prop != nullptr &&
+			strcmp(prop->name, "zorder") == 0 &&
+			drm_property_type_is(prop, DRM_MODE_PROP_RANGE))
+		{
+			uint64_t value = props->prop_values[i];
+			if (drmModeObjectSetProperty(_fd, _planeId, DRM_MODE_OBJECT_PLANE, props->props[i], 0))
+			{
+				log->printf("DisplayOmapDrm::configure(): Failed to set zorder property for plane!\n");
+				return S_FAIL;
+			}
+		}
+		drmModeFreeProperty(prop);
+	}
+	drmModeFreeObjectProperties(props);
+
     _dstWidth = _modeInfo.hdisplay;
 	_dstHeight = _modeInfo.vdisplay;
 
@@ -363,7 +388,7 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 	}
 
 	omap_bo_cpu_prep(_boFB, OMAP_GEM_WRITE);
-	memset(_fbPtr, 0xff, _fbSize / 4);
+	memset(_fbPtr, 0, _fbSize);
 	omap_bo_cpu_fini(_boFB, OMAP_GEM_WRITE);
 
 	omap_bo_cpu_prep(_boVideo, OMAP_GEM_WRITE);
