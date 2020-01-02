@@ -41,18 +41,23 @@ private:
 
 	int                         _fd;
 	struct omap_device         *_omapDevice;
-	struct omap_bo             *_bo;
+	struct omap_bo             *_boFB;
+	struct omap_bo             *_boVideo;
 	drmModeResPtr               _drmResources;
 	drmModePlaneResPtr          _drmPlaneResources;
 	drmModeCrtcPtr				_oldCrtc;
 	drmModeModeInfo             _modeInfo;
 	uint32_t                    _connectorId;
 	uint32_t					_crtcId;
-	uint32_t 					_boFlags;
+	int                         _planeId;
 	U8                         *_fbPtr;
 	U32                         _fbSize;
 	U32                         _fbStride;
 	U32                         _fbWidth, _fbHeight;
+	U8                         *_videoPtr;
+	U32                         _videoSize;
+	U32                         _videoStride;
+	U32                         _videoWidth, _videoHeight;
 	U32                         _dstX, _dstY;
 	U32                         _dstWidth, _dstHeight;
 	SwsContext                 *scaleCtx;
