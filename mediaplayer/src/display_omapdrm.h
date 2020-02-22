@@ -45,10 +45,10 @@ private:
 	struct omap_bo             *_boVideo;
 	drmModeResPtr               _drmResources;
 	drmModePlaneResPtr          _drmPlaneResources;
-	drmModeCrtcPtr				_oldCrtc;
+	drmModeCrtcPtr              _oldCrtc;
 	drmModeModeInfo             _modeInfo;
 	uint32_t                    _connectorId;
-	uint32_t					_crtcId;
+	uint32_t                    _crtcId;
 	int                         _planeId;
 	U8                         *_fbPtr;
 	U32                         _fbSize;

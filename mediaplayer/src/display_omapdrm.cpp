@@ -114,13 +114,12 @@ STATUS DisplayOmapDrm::internalInit() {
 			drmModeFreeConnector(connector);
 			continue;
 		}
-	    if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
-	    	connector->connector_type == DRM_MODE_CONNECTOR_HDMIB)
-	    {
-	    	_connectorId = connector->connector_id;
+		if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA ||
+			connector->connector_type == DRM_MODE_CONNECTOR_HDMIB) {
+			_connectorId = connector->connector_id;
 			drmModeFreeConnector(connector);
-	    	break;
-	    }
+			break;
+		}
 	}
 
 	if (_connectorId == -1) {
@@ -274,7 +273,7 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 	}
 
 	uint32_t fourcc = 0;
-    uint32_t fbId = 0;
+	uint32_t fbId = 0;
 	uint32_t handles[4] = { 0 }, pitches[4] = { 0 }, offsets[4] = { 0 };
 
 	_boFB = omap_bo_new(_omapDevice, _modeInfo.hdisplay * _modeInfo.vdisplay * 4, OMAP_BO_WC | OMAP_BO_SCANOUT);
@@ -285,23 +284,23 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 
 	handles[0] = omap_bo_handle(_boFB);
 	pitches[0] = _modeInfo.hdisplay * 4;
-    int ret = drmModeAddFB2(_fd, _modeInfo.hdisplay, _modeInfo.vdisplay,
-    		                DRM_FORMAT_ARGB8888,
+	int ret = drmModeAddFB2(_fd, _modeInfo.hdisplay, _modeInfo.vdisplay,
+		                DRM_FORMAT_ARGB8888,
 							handles, pitches, offsets, &fbId, 0);
-    if (ret < 0) {
+	if (ret < 0) {
 		log->printf("DisplayOmapDrm::configure(): failed add video buffer: %s\n", strerror(errno));
 		return S_FAIL;
-    }
+	}
 
-    _oldCrtc = drmModeGetCrtc(_fd, _crtcId);
+	_oldCrtc = drmModeGetCrtc(_fd, _crtcId);
 
 	ret = drmModeSetCrtc(_fd, _crtcId, fbId, 0, 0, &_connectorId, 1, &_modeInfo);
-    if (ret < 0) {
+	if (ret < 0) {
 		log->printf("DisplayOmapDrm::configure(): failed set crtc: %s\n", strerror(errno));
 		return S_FAIL;
-    }
+	}
 
-    uint16_t stride;
+	uint16_t stride;
 	switch (videoFmt)
 	{
 	case FMT_YUV420P:
@@ -329,20 +328,20 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 		pitches[1] = pitches[0];
 		offsets[1] = videoWidth * videoHeight;
 	}
-    ret = drmModeAddFB2(_fd, videoWidth, videoHeight,
-    					fourcc, handles, pitches, offsets, &fbId, 0);
-    if (ret < 0) {
+	ret = drmModeAddFB2(_fd, videoWidth, videoHeight,
+					fourcc, handles, pitches, offsets, &fbId, 0);
+	if (ret < 0) {
 		log->printf("DisplayOmapDrm::configure(): failed add buffer: %s\n", strerror(errno));
 		return S_FAIL;
-    }
-    if (drmModeSetPlane(_fd, _planeId, _crtcId, fbId,
-    			    0, 0, 0, _modeInfo.hdisplay, _modeInfo.vdisplay,
-    			    0, 0, videoWidth << 16, videoHeight << 16)) {
+	}
+	if (drmModeSetPlane(_fd, _planeId, _crtcId, fbId,
+			    0, 0, 0, _modeInfo.hdisplay, _modeInfo.vdisplay,
+			    0, 0, videoWidth << 16, videoHeight << 16)) {
 		log->printf("DisplayOmapDrm::configure(): failed set plane: %s\n", strerror(errno));
 		return S_FAIL;
-    }
+	}
 
-    drmModeObjectPropertiesPtr props = drmModeObjectGetProperties(_fd, _planeId, DRM_MODE_OBJECT_PLANE);
+	drmModeObjectPropertiesPtr props = drmModeObjectGetProperties(_fd, _planeId, DRM_MODE_OBJECT_PLANE);
 	if (!props) {
 		log->printf("DisplayOmapDrm::configure(): Failed to find properties for plane!\n");
 		return S_FAIL;
@@ -364,7 +363,7 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 	}
 	drmModeFreeObjectProperties(props);
 
-    _dstWidth = _modeInfo.hdisplay;
+	_dstWidth = _modeInfo.hdisplay;
 	_dstHeight = _modeInfo.vdisplay;
 
 	_fbStride = pitches[0];
