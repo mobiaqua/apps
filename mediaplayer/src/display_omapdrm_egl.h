@@ -44,7 +44,7 @@ struct OmapDrmOSD {
 
 #define NUM_DRM_BUFFERS 2
 
-class DisplayOmapDrm : public Display {
+class DisplayOmapDrmEgl : public Display {
 private:
 
 	int                         _fd;
@@ -66,8 +66,8 @@ private:
 
 public:
 
-	DisplayOmapDrm();
-	~DisplayOmapDrm();
+	DisplayOmapDrmEgl();
+	~DisplayOmapDrmEgl();
 
 	STATUS init();
 	STATUS deinit();

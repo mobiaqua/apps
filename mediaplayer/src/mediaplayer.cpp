@@ -119,7 +119,7 @@ int Player(int argc, char *argv[]) {
 		goto end;
 	}
 
-	display = CreateDisplay(DISPLAY_OMAPDRM);
+	display = CreateDisplay(DISPLAY_OMAPDRM_EGL);
 	if (display == nullptr) {
 		log->printf("Failed get handle to OAMP DRM display!\n");
 		goto end;
