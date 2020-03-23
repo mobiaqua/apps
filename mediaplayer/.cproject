@@ -246,6 +246,14 @@
                                     <listOptionValue builtIn="false" value="drm_omap"/>
                                     									
                                     <listOptionValue builtIn="false" value="dce"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="gbm"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="EGL"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="GLESv2"/>
+                                    									
+                                    <listOptionValue builtIn="false" value="dl"/>
                                     								
                                 </option>
                                 								

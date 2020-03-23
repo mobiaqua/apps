@@ -32,7 +32,7 @@ LDFLAGS:=
 SRCS = $(wildcard src/*.cpp)
 OBJS = $(SRCS:.cpp=.o)
 DEPS = $(SRCS:.cpp=.d)
-LIBS = -lavformat -lavcodec -lswscale -lavutil -lz -lpthread
+LIBS = -lavformat -lavcodec -lswscale -lavutil -lz -lpthread -ldrm -ldrm_omap -ldce -lgbm -legl
 
 all: mediaplayer
 
