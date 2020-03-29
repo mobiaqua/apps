@@ -1,7 +1,7 @@
 /*
  * MobiAqua Media Player
  *
- * Copyright (C) 2013-2019 Pawel Kolodziejski
+ * Copyright (C) 2019-2020 Pawel Kolodziejski
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -25,32 +25,31 @@
 #include "display_base.h"
 #include "basetypes.h"
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 	#include <libdrm/omap_drmif.h>
-	#include <libswscale/swscale.h>
 }
 #endif
 #include <xf86drmMode.h>
 #include <drm_fourcc.h>
+#include <gbm/gbm.h>
+#include <GLES2/gl2.h>
+#include <EGL/egl.h>
 
 namespace MediaPLayer {
-
-struct OmapDrmOSD {
-	struct omap_bo             *bo;
-	U8                         *ptr;
-	uint32_t				   fbId;
-};
-
-#define NUM_DRM_BUFFERS 2
 
 class DisplayOmapDrmEgl : public Display {
 private:
 
+	typedef struct {
+		int         fd;
+		gbm_bo 		*gbmBo;
+		uint32_t	fbId;
+	} DrmFb;
+
 	int                         _fd;
 	omap_device                 *_omapDevice;
-	OmapDrmOSD	                _drmBuffers[NUM_DRM_BUFFERS];
-	int                         _drmBufIdx;
+	gbm_device                  *_gbmDevice;
+	gbm_surface                 *_gbmSurface;
 
 	drmModeResPtr               _drmResources;
 	drmModePlaneResPtr          _drmPlaneResources;
@@ -60,9 +59,12 @@ private:
 	uint32_t                    _crtcId;
 	int                         _planeId;
 
-	U32                         _fbStride;
+	EGLDisplay 					_eglDisplay;
+	EGLSurface					_eglSurface;
+	EGLConfig 					_eglConfig;
+	EGLContext					_eglContext;
+
 	U32                         _fbWidth, _fbHeight;
-	SwsContext                  *_scaleCtx;
 
 public:
 
@@ -79,6 +81,10 @@ private:
 
 	STATUS internalInit();
 	void internalDeinit();
+	static void drmFbDestroyCallback(gbm_bo *gbmBo, void *data);
+	DrmFb *getDrmFb(gbm_bo *gbmBo);
+	static void pageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data);
+	const char* eglGetErrorStr(EGLint error);
 };
 
 } // namespace

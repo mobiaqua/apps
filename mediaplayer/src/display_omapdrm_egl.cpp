@@ -32,12 +32,11 @@ namespace MediaPLayer {
 
 DisplayOmapDrmEgl::DisplayOmapDrmEgl() :
 		_fd(-1), _omapDevice(nullptr),
-		_drmBuffers{}, _drmBufIdx(0),
-		_drmResources(nullptr),
-		_oldCrtc(nullptr),  _drmPlaneResources(nullptr), _connectorId(-1),
-		_crtcId(-1), _planeId(-1),
-		_fbStride(0), _fbWidth(0), _fbHeight(0),
-		_scaleCtx (0){
+		_drmResources(nullptr), _drmPlaneResources(nullptr),
+		_connectorId(-1), _oldCrtc(nullptr), _crtcId(-1), _planeId(-1),
+		_gbmDevice(nullptr), _gbmSurface(nullptr),
+		_eglDisplay(nullptr), _eglSurface(nullptr), _eglConfig(nullptr), _eglContext(nullptr),
+		_fbWidth(0), _fbHeight(0) {
 }
 
 DisplayOmapDrmEgl::~DisplayOmapDrmEgl() {
@@ -63,16 +62,33 @@ STATUS DisplayOmapDrmEgl::deinit() {
 	return S_OK;
 }
 
+#define EGL_STR_ERROR(value) case value: return #value;
+const char* DisplayOmapDrmEgl::eglGetErrorStr(EGLint error) {
+	switch (error) {
+		EGL_STR_ERROR(EGL_SUCCESS)
+		EGL_STR_ERROR(EGL_NOT_INITIALIZED)
+		EGL_STR_ERROR(EGL_BAD_ACCESS)
+		EGL_STR_ERROR(EGL_BAD_ALLOC)
+		EGL_STR_ERROR(EGL_BAD_ATTRIBUTE)
+		EGL_STR_ERROR(EGL_BAD_CONFIG)
+		EGL_STR_ERROR(EGL_BAD_CONTEXT)
+		EGL_STR_ERROR(EGL_BAD_CURRENT_SURFACE)
+		EGL_STR_ERROR(EGL_BAD_DISPLAY)
+		EGL_STR_ERROR(EGL_BAD_MATCH)
+		EGL_STR_ERROR(EGL_BAD_NATIVE_PIXMAP)
+		EGL_STR_ERROR(EGL_BAD_NATIVE_WINDOW)
+		EGL_STR_ERROR(EGL_BAD_PARAMETER)
+		EGL_STR_ERROR(EGL_BAD_SURFACE)
+		EGL_STR_ERROR(EGL_CONTEXT_LOST)
+		default: return "Unknown";
+	}
+}
+#undef EGL_STR_ERROR
+
 STATUS DisplayOmapDrmEgl::internalInit() {
 	_fd = drmOpen("omapdrm", NULL);
 	if (_fd < 0) {
 		log->printf("DisplayOmapDrmEgl::internalInit(): Failed open omapdrm, %s\n", strerror(errno));
-		goto fail;
-	}
-
-	_omapDevice = omap_device_new(_fd);
-	if (!_omapDevice) {
-		log->printf("DisplayOmapDrmEgl::internalInit(): Failed create omap device\n");
 		goto fail;
 	}
 
@@ -111,10 +127,21 @@ STATUS DisplayOmapDrmEgl::internalInit() {
 		goto fail;
 	}
 
+	_gbmDevice = gbm_create_device(_fd);
+	if (!_gbmDevice) {
+		log->printf("DisplayOmapDrmEgl::internalInit(): Failed to create gbm device!\n");
+		goto fail;
+	}
+
 	_initialized = true;
 	return S_OK;
 
 fail:
+
+	if (_gbmDevice != nullptr) {
+		gbm_device_destroy(_gbmDevice);
+		_gbmDevice = nullptr;
+	}
 
 	if (_drmPlaneResources != nullptr) {
 		drmModeFreePlaneResources(_drmPlaneResources);
@@ -126,10 +153,6 @@ fail:
 		_drmResources = nullptr;
 	}
 
-	if (_omapDevice != nullptr) {
-		omap_device_del(_omapDevice);
-		_omapDevice = nullptr;
-	}
 	if (_fd != -1) {
 		drmClose(_fd);
 		_fd = -1;
@@ -142,12 +165,21 @@ void DisplayOmapDrmEgl::internalDeinit() {
 	if (_initialized == false)
 		return;
 
-	for (int i = 0; i < NUM_DRM_BUFFERS; i++) {
-		if (_drmBuffers[i].bo) {
-			omap_bo_cpu_prep(_drmBuffers[i].bo, OMAP_GEM_WRITE);
-			memset(_drmBuffers[i].ptr, 0, omap_bo_size(_drmBuffers[i].bo));
-			omap_bo_cpu_fini(_drmBuffers[i].bo, OMAP_GEM_WRITE);
-		}
+	if (_eglDisplay) {
+		eglDestroySurface(_eglDisplay, _eglSurface);
+		eglDestroyContext(_eglDisplay, _eglContext);
+		eglTerminate(_eglDisplay);
+		_eglDisplay = nullptr;
+	}
+
+	if (_gbmSurface) {
+		gbm_surface_destroy(_gbmSurface);
+		_gbmSurface = nullptr;
+	}
+
+	if (_gbmDevice != nullptr) {
+		gbm_device_destroy(_gbmDevice);
+		_gbmDevice = nullptr;
 	}
 
 	if (_oldCrtc) {
@@ -173,17 +205,33 @@ void DisplayOmapDrmEgl::internalDeinit() {
 }
 
 STATUS DisplayOmapDrmEgl::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoWidth, int videoHeight) {
+	const EGLint configAttribs[] = {
+		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+		EGL_RED_SIZE, 1,
+		EGL_GREEN_SIZE, 1,
+		EGL_BLUE_SIZE, 1,
+		EGL_ALPHA_SIZE, 0,
+		EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+		EGL_NONE
+	};
+
+	const EGLint contextAttribs[] = {
+		EGL_CONTEXT_CLIENT_VERSION, 2,
+		EGL_NONE
+	};
+
 	int modeId = -1;
 	_crtcId = -1;
+	gbm_bo *gbmBo;
+	DrmFb *drmFb;
 
-	switch (videoFmt)
-	{
-	case FMT_YUV420P:
-	case FMT_NV12:
-		break;
-	default:
-		log->printf("DisplayOmapDrmEgl::configure(): Unsupported input format!\n");
-		return S_FAIL;
+	switch (videoFmt) {
+		case FMT_YUV420P:
+		case FMT_NV12:
+			break;
+		default:
+			log->printf("DisplayOmapDrmEgl::configure(): Unsupported input format!\n");
+			return S_FAIL;
 	}
 
 	drmModeConnectorPtr connector = nullptr;
@@ -258,37 +306,6 @@ STATUS DisplayOmapDrmEgl::configure(FORMAT_VIDEO videoFmt, int videoFps, int vid
 		return S_FAIL;
 	}
 
-	uint32_t handles[4] = {}, pitches[4] = {}, offsets[4] = {};
-
-	for (int i = 0; i < NUM_DRM_BUFFERS; i++) {
-		_drmBuffers[i].bo = omap_bo_new(_omapDevice, _modeInfo.hdisplay * _modeInfo.vdisplay * 4, OMAP_BO_WC | OMAP_BO_SCANOUT);
-		if (!_drmBuffers[i].bo) {
-			log->printf("DisplayOmapDrmEgl::configure(): Failed allocate buffer!\n");
-			return S_FAIL;
-		}
-		_drmBuffers[i].ptr = (U8 *)omap_bo_map(_drmBuffers[i].bo);
-		if (_drmBuffers[i].ptr == nullptr) {
-			log->printf("DisplayOmapDrmEgl::configure(): Failed get OSD frame buffer!");
-			return S_FAIL;
-		}
-		handles[i] = omap_bo_handle(_drmBuffers[i].bo);
-		pitches[i] = _modeInfo.hdisplay * 4;
-		int ret = drmModeAddFB2(_fd, _modeInfo.hdisplay, _modeInfo.vdisplay,
-			                	DRM_FORMAT_ARGB8888,
-								handles, pitches, offsets, &_drmBuffers[i].fbId, 0);
-		if (ret < 0) {
-			log->printf("DisplayOmapDrmEgl::configure(): failed add video buffer: %s\n", strerror(errno));
-			return S_FAIL;
-		}
-	}
-
-	_oldCrtc = drmModeGetCrtc(_fd, _crtcId);
-	int ret = drmModeSetCrtc(_fd, _crtcId, _drmBuffers[_drmBufIdx].fbId, 0, 0, &_connectorId, 1, &_modeInfo);
-	if (ret < 0) {
-		log->printf("DisplayOmapDrmEgl::configure(): failed set crtc: %s\n", strerror(errno));
-		return S_FAIL;
-	}
-
 	drmModeObjectPropertiesPtr props = drmModeObjectGetProperties(_fd, _planeId, DRM_MODE_OBJECT_PLANE);
 	if (!props) {
 		log->printf("DisplayOmapDrmEgl::configure(): Failed to find properties for plane!\n");
@@ -296,13 +313,9 @@ STATUS DisplayOmapDrmEgl::configure(FORMAT_VIDEO videoFmt, int videoFps, int vid
 	}
 	for (int i = 0; i < props->count_props; i++) {
 		drmModePropertyPtr prop = drmModeGetProperty(_fd, props->props[i]);
-		if (prop != nullptr &&
-			strcmp(prop->name, "zorder") == 0 &&
-			drm_property_type_is(prop, DRM_MODE_PROP_RANGE))
-		{
+		if (prop != nullptr && strcmp(prop->name, "zorder") == 0 && drm_property_type_is(prop, DRM_MODE_PROP_RANGE)) {
 			uint64_t value = props->prop_values[i];
-			if (drmModeObjectSetProperty(_fd, _planeId, DRM_MODE_OBJECT_PLANE, props->props[i], 0))
-			{
+			if (drmModeObjectSetProperty(_fd, _planeId, DRM_MODE_OBJECT_PLANE, props->props[i], 0)) {
 				log->printf("DisplayOmapDrmEgl::configure(): Failed to set zorder property for plane!\n");
 				return S_FAIL;
 			}
@@ -311,17 +324,153 @@ STATUS DisplayOmapDrmEgl::configure(FORMAT_VIDEO videoFmt, int videoFps, int vid
 	}
 	drmModeFreeObjectProperties(props);
 
+	_oldCrtc = drmModeGetCrtc(_fd, _crtcId);
+
 	_fbWidth = _modeInfo.hdisplay;
 	_fbHeight = _modeInfo.vdisplay;
-	_fbStride = pitches[0];
 
-	for (int i = 0; i < NUM_DRM_BUFFERS; i++) {
-		omap_bo_cpu_prep(_drmBuffers[i].bo, OMAP_GEM_WRITE);
-		memset(_drmBuffers[i].ptr, 0, omap_bo_size(_drmBuffers[i].bo));
-		omap_bo_cpu_fini(_drmBuffers[i].bo, OMAP_GEM_WRITE);
+	log->printf("Using display HDMI output: %dx%d@%d\n", _fbWidth, _fbHeight, _modeInfo.vrefresh);
+
+	_gbmSurface = gbm_surface_create(
+			_gbmDevice,
+			_fbWidth,
+			_fbHeight,
+			GBM_FORMAT_XRGB8888,
+			GBM_BO_USE_SCANOUT | GBM_BO_USE_RENDERING
+			);
+	if (!_gbmSurface) {
+		log->printf("DisplayOmapDrmEgl::configure(): failed to create gbm surface!\n");
+		goto fail;
 	}
 
+	_eglDisplay = eglGetDisplay((EGLNativeDisplayType)_gbmDevice);
+	if (_eglDisplay == EGL_NO_DISPLAY) {
+		log->printf("DisplayOmapDrmEgl::configure(): failed to create display!\n");
+		goto fail;
+	}
+
+	EGLint major, minor;
+	if (!eglInitialize(_eglDisplay, &major, &minor)) {
+		log->printf("DisplayOmapDrmEgl::configure(): failed to initialize egl, error: %s\n", eglGetErrorStr(eglGetError()));
+		goto fail;
+	}
+
+	log->printf("EGL vendor version: \"%s\"\n", eglQueryString(_eglDisplay, EGL_VERSION));
+
+	if (!eglBindAPI(EGL_OPENGL_ES_API)) {
+		log->printf("DisplayOmapDrmEgl::configure(): failed to bind EGL_OPENGL_ES_API, error: %s\n", eglGetErrorStr(eglGetError()));
+		goto fail;
+	}
+
+	EGLint numConfig;
+	if (!eglChooseConfig(_eglDisplay, configAttribs, &_eglConfig, 1, &numConfig)) {
+		log->printf("DisplayOmapDrmEgl::configure(): failed to choose config, error: %s\n", eglGetErrorStr(eglGetError()));
+		goto fail;
+	}
+	if (numConfig != 1) {
+		log->printf("DisplayOmapDrmEgl::configure(): more than 1 config: %d\n", numConfig);
+		goto fail;
+	}
+
+	_eglContext = eglCreateContext(_eglDisplay, _eglConfig, EGL_NO_CONTEXT, contextAttribs);
+	if (_eglContext == EGL_NO_CONTEXT) {
+		log->printf("DisplayOmapDrmEgl::configure(): failed to create context, error: %s\n", eglGetErrorStr(eglGetError()));
+		goto fail;
+	}
+
+	_eglSurface = eglCreateWindowSurface(_eglDisplay, _eglConfig, _gbmSurface, NULL);
+	if (_eglSurface == EGL_NO_SURFACE) {
+		log->printf("DisplayOmapDrmEgl::configure(): failed to create egl surface, error: %s\n", eglGetErrorStr(eglGetError()));
+		goto fail;
+	}
+
+	if (!eglMakeCurrent(_eglDisplay, _eglSurface, _eglSurface, _eglContext)) {
+		log->printf("DisplayOmapDrmEgl::configure(): failed attach rendering context to egl surface, error: %s\n", eglGetErrorStr(eglGetError()));
+		goto fail;
+	}
+
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+	if (!eglSwapBuffers(_eglDisplay, _eglSurface)) {
+		log->printf("DisplayOmapDrmEgl::configure(): failed to swap buffers, error: %s!\n", eglGetErrorStr(eglGetError()));
+		goto fail;
+	}
+
+	gbmBo = gbm_surface_lock_front_buffer(_gbmSurface);
+	drmFb = getDrmFb(gbmBo);
+	if (drmModeSetCrtc(_fd, _crtcId, drmFb->fbId, 0, 0, &_connectorId, 1, &_modeInfo) < 0) {
+		log->printf("DisplayOmapDrmEgl::configure(): failed set crtc: %s\n", strerror(errno));
+		gbm_surface_release_buffer(_gbmSurface, gbmBo);
+		goto fail;
+	}
+	gbm_surface_release_buffer(_gbmSurface, gbmBo);
+
 	return S_OK;
+
+fail:
+
+	if (_eglSurface) {
+		eglDestroySurface(_eglDisplay, _eglSurface);
+		_eglSurface = nullptr;
+	}
+	if (_eglContext) {
+		eglDestroyContext(_eglDisplay, _eglContext);
+		_eglContext = nullptr;
+	}
+	if (_eglDisplay) {
+		eglTerminate(_eglDisplay);
+		_eglDisplay = nullptr;
+	}
+	if (_gbmSurface) {
+		gbm_surface_destroy(_gbmSurface);
+		_gbmSurface = nullptr;
+	}
+
+	return S_FAIL;
+}
+
+void DisplayOmapDrmEgl::drmFbDestroyCallback(gbm_bo *gbmBo, void *data) {
+	DisplayOmapDrmEgl::DrmFb *drmFb = (DisplayOmapDrmEgl::DrmFb *)data;
+
+	if (drmFb->fbId)
+		drmModeRmFB(drmFb->fd, drmFb->fbId);
+
+	delete drmFb;
+}
+
+DisplayOmapDrmEgl::DrmFb *DisplayOmapDrmEgl::getDrmFb(gbm_bo *gbmBo) {
+	uint32_t handles[4] = {}, pitches[4] = {}, offsets[4] = {};
+	DisplayOmapDrmEgl::DrmFb *drmFb = (DisplayOmapDrmEgl::DrmFb *)gbm_bo_get_user_data(gbmBo);
+
+	if (drmFb)
+		return drmFb;
+
+	drmFb = new DisplayOmapDrmEgl::DrmFb;
+	drmFb->fd = _fd;
+	drmFb->gbmBo = gbmBo;
+
+	pitches[0] = gbm_bo_get_stride(gbmBo);
+	handles[0] = gbm_bo_get_handle(gbmBo).u32;
+	int ret = drmModeAddFB2(
+			drmFb->fd,
+			gbm_bo_get_width(gbmBo),
+			gbm_bo_get_height(gbmBo),
+			gbm_bo_get_format(gbmBo),
+			handles,
+			pitches,
+			offsets,
+			&drmFb->fbId,
+			0
+			);
+	if (ret < 0) {
+		log->printf("DisplayOmapDrmEgl::getDrmBuffer(): failed add video buffer: %s\n", strerror(errno));
+		delete drmFb;
+		return nullptr;
+	}
+
+	gbm_bo_set_user_data(gbmBo, drmFb, drmFbDestroyCallback);
+
+	return drmFb;
 }
 
 STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
@@ -333,39 +482,8 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 		goto fail;
 	}
 
-	_drmBufIdx = ++_drmBufIdx & 1;
 	if (frame->pixelfmt == FMT_YUV420P) {
-		uint8_t *srcPtr[4] = { frame->data[0], frame->data[1], frame->data[2], NULL };
-		int srcStride[4] = {
-				static_cast<int>(frame->stride[0]),
-				static_cast<int>(frame->stride[1]),
-				static_cast<int>(frame->stride[2]),
-				0
-		};
-		uint8_t *dstPtr[4] = {
-				_drmBuffers[_drmBufIdx].ptr + _fbStride * dstY + dstX * 4,
-				NULL,
-				NULL,
-				NULL
-		};
-		int dstStride[4] = {
-				static_cast<int>(_fbStride),
-				0,
-				0,
-				0
-		};
 
-		if (!_scaleCtx) {
-			_scaleCtx = sws_getContext(frame->width, frame->height, AV_PIX_FMT_YUV420P, frame->width, frame->height,
-										AV_PIX_FMT_RGB32, SWS_POINT, NULL, NULL, NULL);
-			if (!_scaleCtx) {
-				log->printf("DisplayOmapDrmEgl::putImage(): Can not create scale context!\n");
-				goto fail;
-			}
-		}
-		omap_bo_cpu_prep(_drmBuffers[_drmBufIdx].bo, OMAP_GEM_WRITE);
-		sws_scale(_scaleCtx, srcPtr, srcStride, 0, frame->height, dstPtr, dstStride);
-		omap_bo_cpu_fini(_drmBuffers[_drmBufIdx].bo, OMAP_GEM_WRITE);
 	} else {
 		log->printf("DisplayOmapDrmEgl::putImage(): Can not handle pixel format!\n");
 		goto fail;
@@ -377,37 +495,35 @@ fail:
 	return S_FAIL;
 }
 
-static int waiting_for_flip;
+static bool flipDone;
 
-static void pageFlipHandler(int fd, unsigned int frame,
-		  unsigned int sec, unsigned int usec, void *data)
-{
-	DisplayOmapDrmEgl *ctx = (DisplayOmapDrmEgl *)data;
-	waiting_for_flip = 0;
+void DisplayOmapDrmEgl::pageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data) {
+	flipDone = true;
 }
 
 STATUS DisplayOmapDrmEgl::flip() {
-	int result = drmModePageFlip(_fd, _crtcId, _drmBuffers[_drmBufIdx].fbId, DRM_MODE_PAGE_FLIP_EVENT, this);
-	if (result) {
+	eglSwapBuffers(_eglDisplay, _eglSurface);
+	gbm_bo *gbmBo = gbm_surface_lock_front_buffer(_gbmSurface);
+	DrmFb *drmFb = getDrmFb(gbmBo);
+	if (drmModePageFlip(_fd, _crtcId, drmFb->fbId, DRM_MODE_PAGE_FLIP_EVENT, this)) {
 		log->printf("DisplayOmapDrmEgl::flip(): Can not flip buffer! %s\n", strerror(errno));
 		goto fail;
 	}
 
-	waiting_for_flip = 1;
-	while (waiting_for_flip) {
+	flipDone = false;
+	while (!flipDone) {
 		drmEventContext drmEvent{};
 		drmEventContext drmEventContext{};
 		drmEventContext.version = DRM_EVENT_CONTEXT_VERSION;
 		drmEventContext.page_flip_handler = pageFlipHandler;
-		fd_set fds;
-		FD_ZERO(&fds);
+		fd_set fds{};
 		FD_SET(_fd, &fds);
 		struct timeval timeout = {
 			.tv_sec = 3,
 			.tv_usec = 0,
 			};
 
-		result = select(_fd + 1, &fds, NULL, NULL, &timeout);
+		int result = select(_fd + 1, &fds, NULL, NULL, &timeout);
 		if (result <= 0) {
 			if (errno == EAGAIN) {
 				continue;
@@ -419,9 +535,14 @@ STATUS DisplayOmapDrmEgl::flip() {
 		drmHandleEvent(_fd, &drmEventContext);
 	}
 
+	gbm_surface_release_buffer(_gbmSurface, gbmBo);
+
 	return S_OK;
 
 fail:
+
+	gbm_surface_release_buffer(_gbmSurface, gbmBo);
+
 	return S_FAIL;
 }
 
