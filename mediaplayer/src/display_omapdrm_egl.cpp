@@ -28,6 +28,20 @@
 #include "display_base.h"
 #include "logs.h"
 
+static struct frame_info {
+	unsigned int w;
+	unsigned int h;
+	unsigned int dx;
+	unsigned int dy;
+	unsigned int dw;
+	unsigned int dh;
+	unsigned int y_stride;
+	unsigned int uv_stride;
+} yuv420_frame_info, nv12_frame_info;
+
+extern "C" int yuv420_to_nv12_convert(unsigned char *vdst[3], unsigned char *vsrc[3], unsigned char *, unsigned char *);
+extern "C" void yuv420_to_nv12_open(struct frame_info *dst, struct frame_info *src);
+
 namespace MediaPLayer {
 
 DisplayOmapDrmEgl::DisplayOmapDrmEgl() :
@@ -36,7 +50,9 @@ DisplayOmapDrmEgl::DisplayOmapDrmEgl() :
 		_connectorId(-1), _oldCrtc(nullptr), _crtcId(-1), _planeId(-1),
 		_gbmDevice(nullptr), _gbmSurface(nullptr),
 		_eglDisplay(nullptr), _eglSurface(nullptr), _eglConfig(nullptr), _eglContext(nullptr),
-		_fbWidth(0), _fbHeight(0) {
+		eglCreateImageKHR(nullptr), eglDestroyImageKHR(nullptr), glEGLImageTargetTexture2DOES(nullptr),
+		_vertexShader(0), _fragmentShader(0), _glProgram(0), _renderTexture(nullptr),
+		_fbWidth(0), _fbHeight(0), _scaleCtx(nullptr) {
 }
 
 DisplayOmapDrmEgl::~DisplayOmapDrmEgl() {
@@ -92,6 +108,12 @@ STATUS DisplayOmapDrmEgl::internalInit() {
 		goto fail;
 	}
 
+	_omapDevice = omap_device_new(_fd);
+	if (!_omapDevice) {
+		log->printf("DisplayOmapDrmEgl::internalInit(): Failed create omap device\n");
+		goto fail;
+	}
+
 	_drmResources = drmModeGetResources(_fd);
 	if (!_drmResources) {
 		log->printf("DisplayOmapDrmEgl::internalInit(): Failed get DRM resources, %s\n", strerror(errno));
@@ -133,6 +155,8 @@ STATUS DisplayOmapDrmEgl::internalInit() {
 		goto fail;
 	}
 
+	_scaleCtx = nullptr;
+
 	_initialized = true;
 	return S_OK;
 
@@ -153,6 +177,11 @@ fail:
 		_drmResources = nullptr;
 	}
 
+	if (_omapDevice != nullptr) {
+		omap_device_del(_omapDevice);
+		_omapDevice = nullptr;
+	}
+
 	if (_fd != -1) {
 		drmClose(_fd);
 		_fd = -1;
@@ -165,9 +194,40 @@ void DisplayOmapDrmEgl::internalDeinit() {
 	if (_initialized == false)
 		return;
 
+	if (_scaleCtx) {
+		sws_freeContext(_scaleCtx);
+		_scaleCtx = nullptr;
+	}
+
+	if (_vertexShader) {
+	    glDeleteShader(_vertexShader);
+	    _vertexShader = 0;
+	}
+
+	if (_fragmentShader) {
+	    glDeleteShader(_fragmentShader);
+	    _fragmentShader = 0;
+	}
+
+	if (_glProgram) {
+		glDeleteProgram(_glProgram);
+		_glProgram = 0;
+	}
+
+	if (_renderTexture) {
+		eglDestroyImageKHR(_eglDisplay, _renderTexture);
+		glDeleteTextures(1, &_renderTexture->glTexture);
+		close(_renderTexture->dmabuf);
+		omap_bo_del(_renderTexture->bo);
+		delete _renderTexture;
+		_renderTexture = nullptr;
+	}
+
 	if (_eglDisplay) {
-		eglDestroySurface(_eglDisplay, _eglSurface);
+		glFinish();
+		eglMakeCurrent(_eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 		eglDestroyContext(_eglDisplay, _eglContext);
+		eglDestroySurface(_eglDisplay, _eglSurface);
 		eglTerminate(_eglDisplay);
 		_eglDisplay = nullptr;
 	}
@@ -220,10 +280,31 @@ STATUS DisplayOmapDrmEgl::configure(FORMAT_VIDEO videoFmt, int videoFps, int vid
 		EGL_NONE
 	};
 
+	static const GLchar *vertexShaderSource =
+			"attribute vec2 position;                      \n"
+			"attribute vec2 texCoord;                      \n"
+			"varying   vec2 textureCoords;                 \n"
+			"void main()                                   \n"
+			"{                                             \n"
+			"    textureCoords = texCoord;                 \n"
+			"    gl_Position = vec4(position, 0.0, 1.0);   \n"
+			"}                                             \n";
+
+	static const GLchar *fragmentShaderSource =
+			"#extension GL_OES_EGL_image_external : require               \n"
+			"precision mediump float;                                     \n"
+			"varying vec2               textureCoords;                    \n"
+			"uniform samplerExternalOES textureSampler;                   \n"
+			"void main()                                                  \n"
+			"{                                                            \n"
+			"    gl_FragColor = texture2D(textureSampler, textureCoords); \n"
+			"}                                                            \n";
+
 	int modeId = -1;
 	_crtcId = -1;
 	gbm_bo *gbmBo;
 	DrmFb *drmFb;
+	const char *extensions;
 
 	switch (videoFmt) {
 		case FMT_YUV420P:
@@ -389,6 +470,83 @@ STATUS DisplayOmapDrmEgl::configure(FORMAT_VIDEO videoFmt, int videoFps, int vid
 		goto fail;
 	}
 
+	if (!(eglCreateImageKHR = (PFNEGLCREATEIMAGEKHRPROC)eglGetProcAddress("eglCreateImageKHR"))) {
+		log->printf("DisplayOmapDrmEgl::configure(): No eglCreateImageKHR!\n");
+		goto fail;
+	}
+
+	if (!(eglDestroyImageKHR = (PFNEGLDESTROYIMAGEKHRPROC)eglGetProcAddress("eglDestroyImageKHR"))) {
+		log->printf("DisplayOmapDrmEgl::configure(): No eglDestroyImageKHR!\n");
+		goto fail;
+	}
+
+	if (!(glEGLImageTargetTexture2DOES = (PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)eglGetProcAddress("glEGLImageTargetTexture2DOES"))) {
+		log->printf("DisplayOmapDrmEgl::configure(): No glEGLImageTargetTexture2DOES!\n");
+		goto fail;
+	}
+
+	extensions = (char *)glGetString(GL_EXTENSIONS);
+	if (!strstr(extensions, "GL_TI_image_external_raw_video")) {
+		log->printf("DisplayOmapDrmEgl::configure(): No GL_TI_image_external_raw_video extension!\n");
+		goto fail;
+	}
+
+	GLint shaderStatus;
+	_vertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(_vertexShader, 1, &vertexShaderSource, nullptr);
+	glCompileShader(_vertexShader);
+	glGetShaderiv(_vertexShader, GL_COMPILE_STATUS, &shaderStatus);
+	if (!shaderStatus) {
+		log->printf("DisplayOmapDrmEgl::configure(): vertex shader compilation failed!\n");
+		glGetShaderiv(_vertexShader, GL_INFO_LOG_LENGTH, &shaderStatus);
+		char logStr[shaderStatus];
+		if (shaderStatus > 1) {
+			glGetShaderInfoLog(_vertexShader, shaderStatus, nullptr, logStr);
+			log->printf(logStr);
+		}
+		goto fail;
+	}
+
+	_fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(_fragmentShader, 1, &fragmentShaderSource, NULL);
+	glCompileShader(_fragmentShader);
+	glGetShaderiv(_fragmentShader, GL_COMPILE_STATUS, &shaderStatus);
+	if (!shaderStatus) {
+		log->printf("DisplayOmapDrmEgl::configure(): fragment shader compilation failed!\n");
+		glGetShaderiv(_fragmentShader, GL_INFO_LOG_LENGTH, &shaderStatus);
+		char logStr[shaderStatus];
+		if (shaderStatus > 1) {
+			glGetShaderInfoLog(_fragmentShader, shaderStatus, nullptr, logStr);
+			log->printf(logStr);
+		}
+		goto fail;
+	}
+
+	_glProgram = glCreateProgram();
+
+	glAttachShader(_glProgram, _vertexShader);
+	glAttachShader(_glProgram, _fragmentShader);
+
+	glBindAttribLocation(_glProgram, 0, "position");
+	glBindAttribLocation(_glProgram, 1, "texCoord");
+
+	glLinkProgram(_glProgram);
+	glGetProgramiv(_glProgram, GL_LINK_STATUS, &shaderStatus);
+	if (!shaderStatus) {
+		char logStr[shaderStatus];
+		log->printf("DisplayOmapDrmEgl::configure(): program linking failed!\n");
+		glGetProgramiv(_glProgram, GL_INFO_LOG_LENGTH, &shaderStatus);
+		if (shaderStatus > 1) {
+			glGetProgramInfoLog(_glProgram, shaderStatus, NULL, logStr);
+			log->printf(logStr);
+		}
+		goto fail;
+	}
+
+	glUseProgram(_glProgram);
+
+	glViewport(0, 0, _fbWidth, _fbHeight);
+
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 	if (!eglSwapBuffers(_eglDisplay, _eglSurface)) {
@@ -409,6 +567,18 @@ STATUS DisplayOmapDrmEgl::configure(FORMAT_VIDEO videoFmt, int videoFps, int vid
 
 fail:
 
+	if (_vertexShader) {
+		glDeleteShader(_vertexShader);
+		_vertexShader = 0;
+	}
+	if (_fragmentShader) {
+		glDeleteShader(_fragmentShader);
+		_fragmentShader = 0;
+	}
+	if (_glProgram) {
+		glDeleteProgram(_glProgram);
+		_glProgram = 0;
+	}
 	if (_eglSurface) {
 		eglDestroySurface(_eglDisplay, _eglSurface);
 		_eglSurface = nullptr;
@@ -474,20 +644,182 @@ DisplayOmapDrmEgl::DrmFb *DisplayOmapDrmEgl::getDrmFb(gbm_bo *gbmBo) {
 }
 
 STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
-	U32 dstX = (_fbWidth - frame->width) / 2;
-	U32 dstY = (_fbHeight - frame->height) / 2;
+	uint32_t fourcc;
+	uint32_t stride;
+	uint32_t fbSize;
+	float x, y;
+	float cropLeft, cropRight, cropTop, cropBottom;
+	GLfloat coords[] = {
+		0.0f,  1.0f,
+		1.0f,  1.0f,
+		0.0f,  0.0f,
+		1.0f,  0.0f,
+	};
 
 	if (frame == nullptr || frame->data[0] == nullptr) {
 		log->printf("DisplayOmapDrmEgl::putImage(): Bad arguments!\n");
 		goto fail;
 	}
 
-	if (frame->pixelfmt == FMT_YUV420P) {
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
 
+	x = (float)(frame->dw) / _fbWidth;
+	y = (float)(frame->dh) / _fbHeight;
+	if (x > y) {
+		y /= x;
+		x = 1;
 	} else {
-		log->printf("DisplayOmapDrmEgl::putImage(): Can not handle pixel format!\n");
-		goto fail;
+		x /= y;
+		y = 1;
 	}
+
+	GLfloat position[8];
+	position[0] = -x;
+	position[1] = -y;
+	position[2] =  x;
+	position[3] = -y;
+	position[4] = -x;
+	position[5] =  y;
+	position[6] =  x;
+	position[7] =  y;
+
+	cropLeft = (float)(frame->dx) / frame->width;
+	cropRight = (float)(frame->dw) / frame->width;
+	cropTop = (float)(frame->dy) / frame->height;
+	cropBottom = (float)(frame->dh) / frame->height;
+	coords[0] = coords[4] = cropLeft;
+	coords[2] = coords[6] = cropRight;
+	coords[5] = coords[7] = cropTop;
+	coords[1] = coords[3] = cropBottom;
+
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, position);
+	glEnableVertexAttribArray(0);
+
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, coords);
+	glEnableVertexAttribArray(1);
+
+	if (!_renderTexture) {
+		_renderTexture = new RenderTexture;
+		memset(_renderTexture, 0, sizeof (RenderTexture));
+		if (frame->pixelfmt == FMT_YUV420P || frame->pixelfmt == FMT_NV12) {
+			fourcc = FOURCC_TI_NV12;
+			stride = frame->width;
+			fbSize = frame->width * frame->height * 3 / 2;
+		} else {
+			log->printf("DisplayOmapDrmEgl::putImage(): Can not handle pixel format!\n");
+			goto fail;
+		}
+
+		_renderTexture->bo = omap_bo_new(_omapDevice, fbSize, OMAP_BO_WC);
+		EGLint attr[] = {
+			EGL_GL_VIDEO_FOURCC_TI,      (EGLint)fourcc,
+			EGL_GL_VIDEO_WIDTH_TI,       (EGLint)frame->width,
+			EGL_GL_VIDEO_HEIGHT_TI,      (EGLint)frame->height,
+			EGL_GL_VIDEO_BYTE_SIZE_TI,   (EGLint)omap_bo_size(_renderTexture->bo),
+			EGL_GL_VIDEO_BYTE_STRIDE_TI, (EGLint)stride,
+			EGL_GL_VIDEO_YUV_FLAGS_TI,   EGLIMAGE_FLAGS_YUV_CONFORMANT_RANGE | EGLIMAGE_FLAGS_YUV_BT601,
+			EGL_NONE
+		};
+
+		_renderTexture->dmabuf = omap_bo_dmabuf(_renderTexture->bo);
+		_renderTexture->image = eglCreateImageKHR(_eglDisplay, EGL_NO_CONTEXT, EGL_RAW_VIDEO_TI_DMABUF, (EGLClientBuffer)_renderTexture->dmabuf, attr);
+		if (_renderTexture->image == EGL_NO_IMAGE_KHR) {
+			log->printf("DisplayOmapDrmEgl::configure(): failed to bind texture, error: %s\n", eglGetErrorStr(eglGetError()));
+			goto fail;
+		}
+
+		glGenTextures(1, &_renderTexture->glTexture);
+		glBindTexture(GL_TEXTURE_EXTERNAL_OES, _renderTexture->glTexture);
+		if (glGetError() != GL_NO_ERROR) {
+			log->printf("DisplayOmapDrmEgl::configure(): failed to bind texture, error: %s\n", eglGetErrorStr(eglGetError()));
+			goto fail;
+		}
+
+		glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, _renderTexture->image);
+		if (glGetError() != GL_NO_ERROR) {
+			log->printf("DisplayOmapDrmEgl::configure(): failed update texture, error: %s\n", eglGetErrorStr(eglGetError()));
+			goto fail;
+		}
+
+		glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
+
+	if (!frame->hw) {
+		uint8_t *srcPtr[4] = {};
+		uint8_t *dstPtr[4] = {};
+		int srcStride[4] = {};
+		int dstStride[4] = {};
+
+		uint8_t *dst = (uint8_t *)omap_bo_map(_renderTexture->bo);
+		if (frame->pixelfmt == FMT_YUV420P) {
+			srcPtr[0] = frame->data[0];
+			srcPtr[1] = frame->data[1];
+			srcPtr[2] = frame->data[2];
+			dstPtr[0] = dst;
+			dstPtr[1] = dst + frame->width * frame->height;
+			dstPtr[2] = 0;
+
+			yuv420_frame_info.w = frame->width;
+			yuv420_frame_info.h = frame->height;
+			yuv420_frame_info.dx = 0;
+			yuv420_frame_info.dy = 0;
+			yuv420_frame_info.dw = frame->width;
+			yuv420_frame_info.dh = frame->height;
+			yuv420_frame_info.y_stride = frame->stride[0];
+			yuv420_frame_info.uv_stride = frame->stride[1];
+
+			nv12_frame_info.w = frame->width;
+			nv12_frame_info.h = frame->height;
+			nv12_frame_info.dx = 0;
+			nv12_frame_info.dy = 0;
+			nv12_frame_info.dw = frame->width;
+			nv12_frame_info.dh = frame->height;
+			nv12_frame_info.y_stride = frame->width;
+			nv12_frame_info.uv_stride = frame->width;
+
+			yuv420_to_nv12_open(&yuv420_frame_info, &nv12_frame_info);
+
+			omap_bo_cpu_prep(_renderTexture->bo, OMAP_GEM_WRITE);
+			yuv420_to_nv12_convert(dstPtr, srcPtr, NULL, NULL);
+			omap_bo_cpu_fini(_renderTexture->bo, OMAP_GEM_WRITE);
+		} else {
+			srcPtr[0] = frame->data[0];
+			srcPtr[1] = frame->data[1];
+			srcPtr[2] = frame->data[2];
+			srcPtr[3] = frame->data[3];
+			srcStride[0] = frame->stride[0];
+			srcStride[1] = frame->stride[1];
+			srcStride[2] = frame->stride[2];
+			srcStride[3] = frame->stride[3];
+			dstPtr[0] = dst;
+			dstPtr[1] = dst + frame->width * frame->height;
+			dstPtr[2] = nullptr;
+			dstPtr[3] = nullptr;
+			dstStride[0] = frame->width;
+			dstStride[1] = frame->width;
+			dstStride[2] = 0;
+			dstStride[3] = 0;
+
+			if (!_scaleCtx) {
+				_scaleCtx = sws_getContext(frame->width, frame->height, AV_PIX_FMT_YUV420P, frame->width, frame->height,
+						AV_PIX_FMT_NV12, SWS_POINT, NULL, NULL, NULL);
+				if (!_scaleCtx) {
+					log->printf("DisplayOmapDrm::putImage(): Can not create scale context!\n");
+					goto fail;
+				}
+			}
+			omap_bo_cpu_prep(_renderTexture->bo, OMAP_GEM_WRITE);
+			sws_scale(_scaleCtx, srcPtr, srcStride, 0, frame->height, dstPtr, dstStride);
+			omap_bo_cpu_fini(_renderTexture->bo, OMAP_GEM_WRITE);
+		}
+	}
+
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, _renderTexture->glTexture);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 	return S_OK;
 

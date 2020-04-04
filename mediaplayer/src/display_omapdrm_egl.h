@@ -27,13 +27,16 @@
 #ifdef __cplusplus
 extern "C" {
 	#include <libdrm/omap_drmif.h>
+	#include <libswscale/swscale.h>
 }
 #endif
 #include <xf86drmMode.h>
 #include <drm_fourcc.h>
 #include <gbm/gbm.h>
 #include <GLES2/gl2.h>
+#include <GLES2/gl2ext.h>
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 
 namespace MediaPLayer {
 
@@ -45,6 +48,13 @@ private:
 		gbm_bo 		*gbmBo;
 		uint32_t	fbId;
 	} DrmFb;
+
+	typedef struct {
+		omap_bo     *bo;
+		int         dmabuf;
+		EGLImageKHR image;
+		GLuint      glTexture;
+	} RenderTexture;
 
 	int                         _fd;
 	omap_device                 *_omapDevice;
@@ -63,8 +73,16 @@ private:
 	EGLSurface					_eglSurface;
 	EGLConfig 					_eglConfig;
 	EGLContext					_eglContext;
-
+	PFNEGLCREATEIMAGEKHRPROC    eglCreateImageKHR;
+	PFNEGLDESTROYIMAGEKHRPROC   eglDestroyImageKHR;
+	PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
+	GLuint                      _vertexShader;
+	GLuint                      _fragmentShader;
+	GLuint                      _glProgram;
+	RenderTexture				*_renderTexture;
 	U32                         _fbWidth, _fbHeight;
+
+	SwsContext                  *_scaleCtx;
 
 public:
 
