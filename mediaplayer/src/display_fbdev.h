@@ -46,7 +46,7 @@ private:
 	U32                         _fbSize;
 	U32                         _fbStride;
 	U32                         _fbWidth, _fbHeight;
-	SwsContext                 *scaleCtx;
+	SwsContext                 *_scaleCtx;
 
 public:
 

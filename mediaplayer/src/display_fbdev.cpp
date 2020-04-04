@@ -38,7 +38,7 @@ namespace MediaPLayer {
 
 DisplayFBDev::DisplayFBDev() :
 		_fd(-1), _fbPtr(nullptr), _fbSize(0), _fbStride(0),
-		_fbWidth(0), _fbHeight(0), scaleCtx(NULL) {
+		_fbWidth(0), _fbHeight(0), _scaleCtx(nullptr) {
 }
 
 DisplayFBDev::~DisplayFBDev() {
@@ -115,7 +115,7 @@ STATUS DisplayFBDev::internalInit() {
 	}
 
 	memset(_fbPtr, 0, _fbSize);
-	scaleCtx = NULL;
+	_scaleCtx = nullptr;
 
 	_initialized = true;
 	return S_OK;
@@ -132,8 +132,12 @@ void DisplayFBDev::internalDeinit() {
 	if (_initialized == false)
 		return;
 
-	if (_fbPtr)
-	{
+	if (_scaleCtx) {
+		sws_freeContext(_scaleCtx);
+		_scaleCtx = nullptr;
+	}
+
+	if (_fbPtr) {
 		memset(_fbPtr, 0, _fbSize);
 		munmap(_fbPtr, _fbSize);
 	}
@@ -141,9 +145,9 @@ void DisplayFBDev::internalDeinit() {
 	if (_fd != -1)
 		close(_fd);
 
-	if (!scaleCtx) {
-		sws_freeContext(scaleCtx);
-		scaleCtx = NULL;
+	if (!_scaleCtx) {
+		sws_freeContext(_scaleCtx);
+		_scaleCtx = nullptr;
 	}
 
 	_initialized = false;
@@ -173,15 +177,15 @@ STATUS DisplayFBDev::putImage(VideoFrame *frame) {
 		uint8_t *dstPtr[4] = { _fbPtr + _fbStride * dstY + dstX * 4, NULL, NULL, NULL };
 		int dstStride[4] = { static_cast<int>(_fbStride), 0, 0, 0 };
 
-		if (!scaleCtx) {
-			scaleCtx = sws_getContext(frame->width, frame->height, AV_PIX_FMT_YUV420P, frame->width, frame->height,
+		if (!_scaleCtx) {
+			_scaleCtx = sws_getContext(frame->width, frame->height, AV_PIX_FMT_YUV420P, frame->width, frame->height,
 										AV_PIX_FMT_RGB32, SWS_POINT, NULL, NULL, NULL);
-			if (!scaleCtx) {
+			if (!_scaleCtx) {
 				log->printf("DisplayFBDev::putImage(): Can not create scale context!\n");
 				goto fail;
 			}
 		}
-		sws_scale(scaleCtx, srcPtr, srcStride, 0, frame->height, dstPtr, dstStride);
+		sws_scale(_scaleCtx, srcPtr, srcStride, 0, frame->height, dstPtr, dstStride);
 	} else {
 		log->printf("DisplayFBDev::putImage(): Can not handle pixel format!\n");
 		goto fail;
