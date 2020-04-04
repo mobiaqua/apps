@@ -36,6 +36,7 @@ typedef struct {
 	FORMAT_VIDEO pixelfmt; // pixel format of decoded video frame
 	U32 width, height; // target aligned width and height
 	U32 dx, dy, dw, dh; // border of decoded frame data
+	bool hw;
 } VideoFrame;
 
 #pragma pack()
