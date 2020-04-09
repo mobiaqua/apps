@@ -28,6 +28,7 @@
 #ifdef __cplusplus
 extern "C" {
 	#include <libdce.h>
+	#include <libdrm/omap_drmif.h>
 }
 #endif
 #include <xdc/std.h>
@@ -56,6 +57,9 @@ private:
 	omap_device                 *_dceDev;
 	int           				_frameWidth;
 	int 						_frameHeight;
+	void                        *_inputBufPtr;
+	int                         _inputBufSize;
+	omap_bo                     *_inputBufBo;
 
 public:
 	DecoderVideoLibDCE();

@@ -30,7 +30,7 @@ DecoderVideoLibDCE::DecoderVideoLibDCE() :
 		_codecEngine(nullptr), _codecHandle(nullptr), _codecParams(nullptr), _codecDynParams(nullptr),
 		_codecStatus(0), _codecInputBufs(nullptr), _codecOutputBufs(nullptr),
 		_codecInputArgs(nullptr), _codecOutputArgs(nullptr), _dceDev(nullptr),
-		_frameWidth(0), _frameHeight(0) {
+		_frameWidth(0), _frameHeight(0),_inputBufPtr(nullptr), _inputBufSize(0), _inputBufBo(nullptr) {
 	_bpp = 2;
 }
 
@@ -109,7 +109,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 	_frameWidth  = ALIGN2(info.width, 4);
 	_frameHeight = ALIGN2(info.height, 4);
 
-	dce_set_fd(displayHandle.handle);
+	dce_set_fd(displayHandle.handle1);
 	_dceDev = dce_init();
 	if (_dceDev == nullptr) {
 		log->printf("DecoderVideoLibDCE::init(): failed init dce!\n");
@@ -275,19 +275,36 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 		goto fail;
     }
 
+    _inputBufBo = omap_bo_new((omap_device *)displayHandle.handle2, _frameWidth * _frameHeight * 2, OMAP_BO_WC);
+    if (!_inputBufBo) {
+		log->printf("DecoderVideoLibDCE::init(): Failed create input buffer\n");
+		goto fail;
+    }
+    _inputBufPtr = omap_bo_map(_inputBufBo);
+    _inputBufSize = omap_bo_size(_inputBufBo);
+
     _codecInputBufs->numBufs = 1;
-    _codecInputBufs->descs[0].memType = XDM_MEMTYPE_RAW;
+    _codecInputBufs->descs[0].memType = XDM_MEMTYPE_BO;
+    _codecInputBufs->descs[0].buf = (XDAS_Int8 *)omap_bo_handle(_inputBufBo);
+    _codecInputBufs->descs[0].bufSize.bytes = _inputBufSize;
 
     _codecOutputBufs->numBufs = 2;
-    _codecOutputBufs->descs[0].memType = XDM_MEMTYPE_RAW;
+    _codecOutputBufs->descs[0].memType = XDM_MEMTYPE_BO;
     _codecOutputBufs->descs[0].bufSize.bytes = _frameWidth * _frameHeight;
-    _codecOutputBufs->descs[1].memType = XDM_MEMTYPE_RAW;
-    _codecOutputBufs->descs[1].bufSize.bytes = (_frameWidth * _frameHeight) / 2;
+    _codecOutputBufs->descs[1].memType = XDM_MEMTYPE_BO_OFFSET;
+    _codecOutputBufs->descs[1].buf = (XDAS_Int8 *)(_frameWidth * _frameHeight);
+    _codecOutputBufs->descs[1].bufSize.bytes = _frameWidth * (_frameHeight / 2);
 
-    return S_OK;
+	_initialized = true;
+
+	return S_OK;
 
 fail:
 
+	if (_inputBufBo) {
+		omap_bo_del(_inputBufBo);
+		_inputBufBo = nullptr;
+	}
 	if (_codecHandle) {
 		VIDDEC3_delete(_codecHandle);
 		_codecHandle = nullptr;
@@ -336,6 +353,10 @@ fail:
 }
 
 STATUS DecoderVideoLibDCE::deinit() {
+	if (_initialized == false) {
+		return S_OK;
+	}
+
 	if (_codecHandle && _codecDynParams && _codecParams) {
 		VIDDEC3_control(_codecHandle, XDM_FLUSH, _codecDynParams, _codecStatus);
 	}
@@ -384,6 +405,11 @@ STATUS DecoderVideoLibDCE::deinit() {
 		_dceDev = nullptr;
 	}
 
+	if (_inputBufBo) {
+		omap_bo_del(_inputBufBo);
+		_inputBufBo = nullptr;
+	}
+
 	return S_OK;
 }
 
@@ -398,10 +424,18 @@ void DecoderVideoLibDCE::getDemuxerBuffer(StreamFrame *streamFrame) {
 }
 
 STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, StreamFrame *streamFrame) {
+	if (!_initialized) {
+		return S_FAIL;
+	}
+
 	return S_OK;
 }
 
 STATUS DecoderVideoLibDCE::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame) {
+	if (!_initialized) {
+		return S_FAIL;
+	}
+
 	return S_OK;
 }
 
