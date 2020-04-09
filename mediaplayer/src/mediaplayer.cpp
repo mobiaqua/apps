@@ -62,7 +62,6 @@ int Player(int argc, char *argv[]) {
 
 	if (optind < argc) {
 		filename = argv[optind];
-		log->printf("\ninput file: %s\n\n", filename);
 	} else {
 		log->printf("Missing filename param!\n");
 		goto end;
