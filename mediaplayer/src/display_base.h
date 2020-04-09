@@ -29,8 +29,7 @@
 namespace MediaPLayer {
 
 typedef struct {
-	int     handle1;
-	void    *handle2;
+	int     handle;
 } DisplayHandle;
 
 class Display {

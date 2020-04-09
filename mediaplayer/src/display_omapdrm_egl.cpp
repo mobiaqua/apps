@@ -894,8 +894,7 @@ STATUS DisplayOmapDrmEgl::getHandle(DisplayHandle *handle) {
 	if (!_initialized || handle == nullptr)
 		return S_FAIL;
 
-	handle->handle1 = _fd;
-	handle->handle2 = _omapDevice;
+	handle->handle = _fd;
 
 	return S_OK;
 };
