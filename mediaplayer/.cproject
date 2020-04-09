@@ -209,6 +209,8 @@
                                     									
                                     <listOptionValue builtIn="false" value="&quot;${OE_BASE}/armv7a-hf-linux-gnueabi/usr/include/libdrm/&quot;"/>
                                     									
+                                    <listOptionValue builtIn="false" value="&quot;${OE_BASE}/armv7a-hf-linux-gnueabi/usr/include/dce&quot;"/>
+                                    									
                                     <listOptionValue builtIn="false" value="&quot;${OE_BASE}/armv7a-hf-linux-gnueabi/usr/include/omap/&quot;"/>
                                     								
                                 </option>
@@ -343,7 +345,7 @@
             			
             <storageModule moduleId="cdtBuildSystem" version="4.0.0">
                 				
-                <configuration artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.release" cleanCommand="${cross_rm} -rf" description="" id="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.75262219" name="Release" parent="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release">
+                <configuration artifactName="${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.release" cleanCommand="${cross_rm} -rf" description="" id="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.75262219" name="Release" optionalBuildProperties="" parent="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release">
                     					
                     <folderInfo id="ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.75262219." name="/" resourcePath="">
                         						
