@@ -94,6 +94,7 @@ public:
 	STATUS configure(FORMAT_VIDEO videoFmt, int videoFps, int videoWidth, int videoHeight);
 	STATUS putImage(VideoFrame *frame);
 	STATUS flip();
+	STATUS getHandle(DisplayHandle *handle);
 
 private:
 

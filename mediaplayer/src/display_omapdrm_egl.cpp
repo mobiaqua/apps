@@ -878,4 +878,13 @@ fail:
 	return S_FAIL;
 }
 
+STATUS DisplayOmapDrmEgl::getHandle(DisplayHandle *handle) {
+	if (!_initialized || handle == nullptr)
+		return S_FAIL;
+
+	handle->handle = _fd;
+
+	return S_OK;
+};
+
 } // namespace
