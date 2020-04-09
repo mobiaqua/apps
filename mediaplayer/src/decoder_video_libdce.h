@@ -25,15 +25,44 @@
 #include "basetypes.h"
 #include "decoder_video_base.h"
 
+#ifdef __cplusplus
+extern "C" {
+	#include <libdce.h>
+}
+#endif
+#include <xdc/std.h>
+#include <ti/xdais/dm/xdm.h>
+#include <ti/sdo/ce/Engine.h>
+#include <ti/sdo/ce/video3/viddec3.h>
+#include <ti/sdo/codecs/h264dec/ih264vdec.h>
+#include <ti/sdo/codecs/mpeg4dec/impeg4vdec.h>
+#include <ti/sdo/codecs/mpeg2vdec/impeg2vdec.h>
+#include <ti/sdo/codecs/vc1vdec/ivc1vdec.h>
+
 namespace MediaPLayer {
 
 class DecoderVideoLibDCE : public DecoderVideo {
+
+private:
+	Engine_Handle              	_codecEngine;
+	VIDDEC3_Handle             	_codecHandle;
+	VIDDEC3_Params 				*_codecParams;
+	VIDDEC3_DynamicParams 		*_codecDynParams;
+	VIDDEC3_Status				*_codecStatus;
+	XDM2_BufDesc				*_codecInputBufs;
+	XDM2_BufDesc				*_codecOutputBufs;
+	VIDDEC3_InArgs				*_codecInputArgs;
+	VIDDEC3_OutArgs				*_codecOutputArgs;
+	omap_device                 *_dceDev;
+	int           				_frameWidth;
+	int 						_frameHeight;
+
 public:
 	DecoderVideoLibDCE();
 	~DecoderVideoLibDCE();
 
 	bool isCapable(Demuxer *demuxer);
-	STATUS init(Demuxer *demuxer);
+	STATUS init(Demuxer *demuxer, Display *display);
 	STATUS deinit();
 	STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame);
 	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame);
