@@ -46,6 +46,7 @@ int Player(int argc, char *argv[]) {
 	Demuxer *demuxer = nullptr;
 	DecoderVideo *decoderVideo = nullptr;
 	DecoderAudio *decoderAudio = nullptr;
+	StreamVideoInfo info;
 	bool hwAccel = false;
 
 	if (CreateLogs() == S_FAIL)
@@ -85,37 +86,8 @@ int Player(int argc, char *argv[]) {
 		log->printf("No audio stream!\n");
 	}
 
-	decoderVideo = CreateDecoderVideo(DECODER_LIBDCE);
-	if (decoderVideo == nullptr) {
-		log->printf("Failed get handle to libdce decoder!\n");
-	} else if (!decoderVideo->isCapable(demuxer)) {
-		delete decoderVideo;
-		decoderVideo = nullptr;
-	} else {
-		hwAccel = true;
-	}
-	decoderVideo = CreateDecoderVideo(DECODER_LIBAV);
-	if (decoderVideo == nullptr) {
-		log->printf("Failed get handle to video decoder!\n");
-		goto end;
-	} else if (!decoderVideo->isCapable(demuxer)) {
-		delete decoderVideo;
-		decoderVideo = nullptr;
-		log->printf("Failed get capable video decoder!\n");
-		goto end;
-	}
-	if (decoderVideo->init(demuxer) == S_FAIL) {
-		log->printf("Failed get init video decoder!\n");
-		goto end;
-	}
-
-	decoderAudio = CreateDecoderAudio(DECODER_LIBAV);
-	if (decoderAudio == nullptr) {
-		log->printf("Failed get handle to audio decoder!\n");
-		goto end;
-	}
-	if (decoderAudio->init(demuxer) == S_FAIL) {
-		log->printf("Failed get init audio decoder!\n");
+	if (demuxer->getVideoStreamInfo(&info) != S_OK) {
+		log->printf("Get video info failed\n");
 		goto end;
 	}
 
@@ -137,10 +109,46 @@ int Player(int argc, char *argv[]) {
 			goto end;
 		}
 	}
-	if (display->configure(decoderVideo->getVideoFmt(demuxer), 25,
-						   decoderVideo->getVideoWidth(demuxer),
-						   decoderVideo->getVideoHeight(demuxer)) == S_FAIL) {
+	if (display->configure(info.pixelfmt, 25, info.width, info.height) == S_FAIL) {
 		log->printf("Failed configure display!\n");
+		goto end;
+	}
+
+	decoderVideo = CreateDecoderVideo(DECODER_LIBDCE);
+	if (decoderVideo == nullptr) {
+		log->printf("Failed get handle to libdce decoder!\n");
+	} else if (!decoderVideo->isCapable(demuxer)) {
+		delete decoderVideo;
+		decoderVideo = nullptr;
+	} else {
+		hwAccel = true;
+	}
+
+	if (decoderVideo == nullptr) {
+		decoderVideo = CreateDecoderVideo(DECODER_LIBAV);
+		if (decoderVideo == nullptr) {
+			log->printf("Failed get handle to video decoder!\n");
+			goto end;
+		} else if (!decoderVideo->isCapable(demuxer)) {
+			delete decoderVideo;
+			decoderVideo = nullptr;
+			log->printf("Failed get capable video decoder!\n");
+			goto end;
+		}
+	}
+
+	if (decoderVideo->init(demuxer, display) == S_FAIL) {
+		log->printf("Failed get init video decoder!\n");
+		goto end;
+	}
+
+	decoderAudio = CreateDecoderAudio(DECODER_LIBAV);
+	if (decoderAudio == nullptr) {
+		log->printf("Failed get handle to audio decoder!\n");
+		goto end;
+	}
+	if (decoderAudio->init(demuxer) == S_FAIL) {
+		log->printf("Failed get init audio decoder!\n");
 		goto end;
 	}
 
