@@ -265,6 +265,9 @@ void DisplayOmapDrmEgl::internalDeinit() {
 }
 
 STATUS DisplayOmapDrmEgl::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoWidth, int videoHeight) {
+	if (!_initialized)
+		return S_FAIL;
+
 	const EGLint configAttribs[] = {
 		EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
 		EGL_RED_SIZE, 1,
@@ -609,6 +612,9 @@ void DisplayOmapDrmEgl::drmFbDestroyCallback(gbm_bo *gbmBo, void *data) {
 }
 
 DisplayOmapDrmEgl::DrmFb *DisplayOmapDrmEgl::getDrmFb(gbm_bo *gbmBo) {
+	if (!_initialized)
+		return S_FAIL;
+
 	uint32_t handles[4] = {}, pitches[4] = {}, offsets[4] = {};
 	DisplayOmapDrmEgl::DrmFb *drmFb = (DisplayOmapDrmEgl::DrmFb *)gbm_bo_get_user_data(gbmBo);
 
@@ -644,6 +650,9 @@ DisplayOmapDrmEgl::DrmFb *DisplayOmapDrmEgl::getDrmFb(gbm_bo *gbmBo) {
 }
 
 STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
+	if (!_initialized)
+		return S_FAIL;
+
 	uint32_t fourcc;
 	uint32_t stride;
 	uint32_t fbSize;
@@ -834,6 +843,9 @@ void DisplayOmapDrmEgl::pageFlipHandler(int fd, unsigned int frame, unsigned int
 }
 
 STATUS DisplayOmapDrmEgl::flip() {
+	if (!_initialized)
+		return S_FAIL;
+
 	eglSwapBuffers(_eglDisplay, _eglSurface);
 	gbm_bo *gbmBo = gbm_surface_lock_front_buffer(_gbmSurface);
 	DrmFb *drmFb = getDrmFb(gbmBo);
