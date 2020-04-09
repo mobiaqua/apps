@@ -48,6 +48,7 @@ int Player(int argc, char *argv[]) {
 	DecoderAudio *decoderAudio = nullptr;
 	StreamVideoInfo info;
 	bool hwAccel = false;
+	StreamFrame inputFrame{};
 
 	if (CreateLogs() == S_FAIL)
 		goto end;
@@ -140,6 +141,13 @@ int Player(int argc, char *argv[]) {
 		log->printf("Failed get init video decoder!\n");
 		goto end;
 	}
+	decoderVideo->getDemuxerBuffer(&inputFrame);
+
+	audio = CreateAudio(AUDIO_ALSA);
+	if (audio == nullptr) {
+		log->printf("Failed get handle to audio Alsa!\n");
+		goto end;
+	}
 
 	decoderAudio = CreateDecoderAudio(DECODER_LIBAV);
 	if (decoderAudio == nullptr) {
@@ -150,14 +158,8 @@ int Player(int argc, char *argv[]) {
 		log->printf("Failed get init audio decoder!\n");
 		goto end;
 	}
+	decoderAudio->getDemuxerBuffer(&inputFrame);
 
-	audio = CreateAudio(AUDIO_ALSA);
-	if (audio == nullptr) {
-		log->printf("Failed get handle to audio Alsa!\n");
-		goto end;
-	}
-
-	StreamFrame inputFrame;
 	while (demuxer->readNextFrame(&inputFrame) == S_OK) {
 		bool frameReady = false;
 		if (inputFrame.videoFrame.data != nullptr) {
@@ -187,8 +189,8 @@ int Player(int argc, char *argv[]) {
 	}
 
 end:
-	delete audio;
 	delete decoderAudio;
+	delete audio;
 	delete decoderVideo;
 	delete display;
 	delete demuxer;
