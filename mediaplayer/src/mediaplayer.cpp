@@ -188,11 +188,11 @@ int Player(int argc, char *argv[]) {
 	}
 
 end:
-	delete decoderVideo;
-	delete decoderAudio;
-	delete demuxer;
-	delete display;
 	delete audio;
+	delete decoderAudio;
+	delete decoderVideo;
+	delete display;
+	delete demuxer;
 	delete log;
 
 	return 0;
