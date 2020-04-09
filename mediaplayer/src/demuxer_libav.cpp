@@ -429,6 +429,10 @@ STATUS DemuxerLibAV::readNextFrame(StreamFrame *frame) {
 	}
 
 	memset(&_streamFrame, 0, sizeof(StreamFrame));
+	_streamFrame.videoFrame.externalData = frame->videoFrame.externalData;
+	_streamFrame.videoFrame.externalDataSize = frame->videoFrame.externalDataSize;
+	_streamFrame.audioFrame.externalData = frame->audioFrame.externalData;
+	_streamFrame.audioFrame.externalDataSize = frame->audioFrame.externalDataSize;
 
 	if (av_read_frame(_afc, &_packedFrame) == 0) {
 		if (_packedFrame.stream_index == _videoStream->index) {
@@ -446,16 +450,34 @@ STATUS DemuxerLibAV::readNextFrame(StreamFrame *frame) {
 			}
 			_streamFrame.videoFrame.pts = _packedFrame.pts * av_q2d(_videoStream->time_base);
 			_streamFrame.videoFrame.keyFrame = (_packedFrame.flags & AV_PKT_FLAG_KEY) != 0;
-			_streamFrame.videoFrame.dataSize = _packedFrame.size;
-			_streamFrame.videoFrame.data = static_cast<U8 *>(av_malloc(_packedFrame.size + AV_INPUT_BUFFER_PADDING_SIZE));
-			memcpy(_streamFrame.videoFrame.data, _packedFrame.data, _packedFrame.size);
-			memset(_streamFrame.videoFrame.data + _packedFrame.size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+			if (_streamFrame.videoFrame.externalData) {
+				if (_streamFrame.videoFrame.externalDataSize < _packedFrame.size) {
+					log->printf("DemuxerLibAV::getNextFrame(): external buffer too small for video frame!\n");
+					av_packet_unref(&_packedFrame);
+					return S_FAIL;
+				}
+				memcpy(_streamFrame.videoFrame.externalData, _packedFrame.data, _packedFrame.size);
+			} else {
+				_streamFrame.videoFrame.dataSize = _packedFrame.size;
+				_streamFrame.videoFrame.data = static_cast<U8 *>(av_malloc(_packedFrame.size + AV_INPUT_BUFFER_PADDING_SIZE));
+				memcpy(_streamFrame.videoFrame.data, _packedFrame.data, _packedFrame.size);
+				memset(_streamFrame.videoFrame.data + _packedFrame.size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+			}
 			_streamFrame.priv = &_packedFrame;
 		} else if (_packedFrame.stream_index == _audioStream->index) {
-			_streamFrame.audioFrame.dataSize = _packedFrame.size;
-			_streamFrame.audioFrame.data = static_cast<U8 *>(av_malloc(_packedFrame.size + AV_INPUT_BUFFER_PADDING_SIZE));
-			memcpy(_streamFrame.audioFrame.data, _packedFrame.data, _packedFrame.size);
-			memset(_streamFrame.audioFrame.data + _packedFrame.size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+			if (_streamFrame.audioFrame.externalData) {
+				if (_streamFrame.audioFrame.externalDataSize < _packedFrame.size) {
+					log->printf("DemuxerLibAV::getNextFrame(): external buffer too small for audio frame!\n");
+					av_packet_unref(&_packedFrame);
+					return S_FAIL;
+				}
+				memcpy(_streamFrame.audioFrame.externalData, _packedFrame.data, _packedFrame.size);
+			} else {
+				_streamFrame.audioFrame.dataSize = _packedFrame.size;
+				_streamFrame.audioFrame.data = static_cast<U8 *>(av_malloc(_packedFrame.size + AV_INPUT_BUFFER_PADDING_SIZE));
+				memcpy(_streamFrame.audioFrame.data, _packedFrame.data, _packedFrame.size);
+				memset(_streamFrame.audioFrame.data + _packedFrame.size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+			}
 			_streamFrame.priv = &_packedFrame;
 		}
 
