@@ -613,7 +613,7 @@ void DisplayOmapDrmEgl::drmFbDestroyCallback(gbm_bo *gbmBo, void *data) {
 
 DisplayOmapDrmEgl::DrmFb *DisplayOmapDrmEgl::getDrmFb(gbm_bo *gbmBo) {
 	if (!_initialized)
-		return S_FAIL;
+		return nullptr;
 
 	uint32_t handles[4] = {}, pitches[4] = {}, offsets[4] = {};
 	DisplayOmapDrmEgl::DrmFb *drmFb = (DisplayOmapDrmEgl::DrmFb *)gbm_bo_get_user_data(gbmBo);
