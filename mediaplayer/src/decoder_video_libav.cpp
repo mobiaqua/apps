@@ -92,7 +92,7 @@ bool DecoderVideoLibAV::isCapable(Demuxer *demuxer) {
 	return false;
 }
 
-STATUS DecoderVideoLibAV::init(Demuxer *demuxer) {
+STATUS DecoderVideoLibAV::init(Demuxer *demuxer, Display *display) {
 	int err;
 
 	if (_initialized) {

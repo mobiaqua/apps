@@ -43,7 +43,7 @@ bool DecoderVideoHEVCArm::isCapable(Demuxer *demuxer) {
 	return false;
 }
 
-STATUS DecoderVideoHEVCArm::init(Demuxer *demuxer) {
+STATUS DecoderVideoHEVCArm::init(Demuxer *demuxer, Display *display) {
 	return S_OK;
 }
 

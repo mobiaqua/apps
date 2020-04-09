@@ -25,6 +25,7 @@
 #include "basetypes.h"
 #include "avtypes.h"
 #include "demuxer_base.h"
+#include "display_base.h"
 
 namespace MediaPLayer {
 
@@ -53,7 +54,7 @@ public:
 	virtual ~DecoderVideo() {}
 
 	virtual bool isCapable(Demuxer *demuxer) = 0;
-	virtual STATUS init(Demuxer *demuxer) = 0;
+	virtual STATUS init(Demuxer *demuxer, Display *display) = 0;
 	virtual STATUS deinit() = 0;
 	virtual STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame) = 0;
 	virtual STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame) = 0;

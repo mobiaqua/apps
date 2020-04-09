@@ -42,7 +42,7 @@ bool DecoderVideoCodecEngine::isCapable(Demuxer *demuxer) {
 	return false;
 }
 
-STATUS DecoderVideoCodecEngine::init(Demuxer *demuxer) {
+STATUS DecoderVideoCodecEngine::init(Demuxer *demuxer, Display *display) {
 	return S_OK;
 }
 

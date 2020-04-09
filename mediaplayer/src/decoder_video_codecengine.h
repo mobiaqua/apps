@@ -34,7 +34,7 @@ public:
 	~DecoderVideoCodecEngine();
 
 	bool isCapable(Demuxer *demuxer);
-	STATUS init(Demuxer *demuxer);
+	STATUS init(Demuxer *demuxer, Display *display);
 	STATUS deinit();
 	STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame);
 	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame);
