@@ -28,8 +28,9 @@
 
 namespace MediaPLayer {
 
-typedef union {
-	int     handle;
+typedef struct {
+	int     handle1;
+	void    *handle2;
 } DisplayHandle;
 
 class Display {
