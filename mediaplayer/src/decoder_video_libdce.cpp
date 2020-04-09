@@ -353,7 +353,7 @@ fail:
 }
 
 STATUS DecoderVideoLibDCE::deinit() {
-	if (_initialized == false) {
+	if (!_initialized) {
 		return S_OK;
 	}
 
@@ -409,6 +409,8 @@ STATUS DecoderVideoLibDCE::deinit() {
 		omap_bo_del(_inputBufBo);
 		_inputBufBo = nullptr;
 	}
+
+	_initialized = false;
 
 	return S_OK;
 }
