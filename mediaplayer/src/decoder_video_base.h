@@ -25,7 +25,6 @@
 #include "basetypes.h"
 #include "avtypes.h"
 #include "demuxer_base.h"
-#include "display_base.h"
 
 namespace MediaPLayer {
 
@@ -41,6 +40,8 @@ typedef struct {
 } VideoFrame;
 
 #pragma pack()
+
+class Display;
 
 class DecoderVideo {
 protected:
