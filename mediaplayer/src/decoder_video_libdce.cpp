@@ -336,6 +336,54 @@ fail:
 }
 
 STATUS DecoderVideoLibDCE::deinit() {
+	if (_codecHandle && _codecDynParams && _codecParams) {
+		VIDDEC3_control(_codecHandle, XDM_FLUSH, _codecDynParams, _codecStatus);
+	}
+
+	if (_codecHandle) {
+		VIDDEC3_delete(_codecHandle);
+		_codecHandle = nullptr;
+	}
+
+	if (_codecParams) {
+		dce_free(_codecParams);
+		_codecParams = nullptr;
+	}
+	if (_codecStatus) {
+		dce_free(_codecStatus);
+		_codecStatus = nullptr;
+	}
+	if (_codecDynParams) {
+		dce_free(_codecDynParams);
+		_codecDynParams = nullptr;
+	}
+	if (_codecInputBufs) {
+		dce_free(_codecInputBufs);
+		_codecInputBufs = nullptr;
+	}
+	if (_codecOutputBufs) {
+		dce_free(_codecOutputBufs);
+		_codecOutputBufs = nullptr;
+	}
+	if (_codecInputArgs) {
+		dce_free(_codecInputArgs);
+		_codecInputArgs = nullptr;
+	}
+	if (_codecOutputArgs) {
+		dce_free(_codecOutputArgs);
+		_codecOutputArgs = nullptr;
+	}
+
+	if (_codecEngine) {
+		Engine_close(_codecEngine);
+		_codecEngine = nullptr;
+	}
+
+	if (_dceDev) {
+		dce_deinit(_dceDev);
+		_dceDev = nullptr;
+	}
+
 	return S_OK;
 }
 
