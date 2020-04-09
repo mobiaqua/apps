@@ -387,6 +387,16 @@ STATUS DecoderVideoLibDCE::deinit() {
 	return S_OK;
 }
 
+void DecoderVideoLibDCE::getDemuxerBuffer(StreamFrame *streamFrame) {
+	if (!_initialized) {
+		streamFrame->videoFrame.externalData = nullptr;
+		streamFrame->videoFrame.externalDataSize = 0;
+	} else {
+		streamFrame->videoFrame.externalData = (U8 *)_inputBufPtr;
+		streamFrame->videoFrame.externalDataSize = _inputBufSize;
+	}
+}
+
 STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, StreamFrame *streamFrame) {
 	return S_OK;
 }

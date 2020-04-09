@@ -35,6 +35,8 @@ namespace MediaPLayer {
 typedef struct {
 	U8      *data;
 	U32      dataSize;
+	U8      *externalData;
+	U32      externalDataSize;
 	S64      pts;
 	bool     keyFrame;
 } StreamVideoFrame;
@@ -42,6 +44,8 @@ typedef struct {
 typedef struct {
 	U8      *data;
 	U32      dataSize;
+	U8      *externalData;
+	U32      externalDataSize;
 	void    *priv; // used for non API purposes
 } StreamAudioFrame;
 

@@ -48,6 +48,7 @@ public:
 	STATUS init(Demuxer *demuxer, Display *display);
 	STATUS deinit();
 	STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame);
+	void getDemuxerBuffer(StreamFrame *streamFrame) { streamFrame->videoFrame.externalData = nullptr; streamFrame->videoFrame.externalDataSize = 0; }
 	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame);
 	FORMAT_VIDEO getVideoFmt(Demuxer *demuxer);
 	int getVideoWidth(Demuxer *demuxer);

@@ -40,6 +40,7 @@ public:
 	virtual bool isCapable(Demuxer *demuxer) = 0;
 	virtual STATUS init(Demuxer *demuxer) = 0;
 	virtual STATUS deinit() = 0;
+	virtual void getDemuxerBuffer(StreamFrame *streamFrame) = 0;
 	virtual STATUS decodeFrame() = 0;
 };
 
