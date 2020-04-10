@@ -36,7 +36,7 @@ public:
 	bool isCapable(Demuxer *demuxer);
 	STATUS init(Demuxer *demuxer, Display *display);
 	STATUS deinit();
-	void getDemuxerBuffer(StreamFrame *streamFrame) { streamFrame->videoFrame.externalData = nullptr; streamFrame->videoFrame.externalDataSize = 0; }
+	void getDemuxerBuffer(StreamFrame *streamFrame);
 	STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame);
 	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame);
 	FORMAT_VIDEO getVideoFmt(Demuxer * /*demuxer*/) { return FMT_YUV420P; }

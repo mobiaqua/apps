@@ -141,7 +141,6 @@ int Player(int argc, char *argv[]) {
 		log->printf("Failed get init video decoder!\n");
 		goto end;
 	}
-	decoderVideo->getDemuxerBuffer(&inputFrame);
 
 	audio = CreateAudio(AUDIO_ALSA);
 	if (audio == nullptr) {
@@ -158,9 +157,13 @@ int Player(int argc, char *argv[]) {
 		log->printf("Failed get init audio decoder!\n");
 		goto end;
 	}
-	decoderAudio->getDemuxerBuffer(&inputFrame);
 
-	while (demuxer->readNextFrame(&inputFrame) == S_OK) {
+	for (;;) {
+		decoderVideo->getDemuxerBuffer(&inputFrame);
+		decoderAudio->getDemuxerBuffer(&inputFrame);
+		if (demuxer->readNextFrame(&inputFrame) != S_OK)
+			break;
+
 		bool frameReady = false;
 		if (inputFrame.videoFrame.data != nullptr) {
 			if (decoderVideo->decodeFrame(frameReady, &inputFrame) != S_OK) {

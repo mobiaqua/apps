@@ -47,7 +47,7 @@ public:
 	bool isCapable(Demuxer *demuxer);
 	STATUS init(Demuxer *demuxer);
 	STATUS deinit();
-	void getDemuxerBuffer(StreamFrame *streamFrame) { streamFrame->videoFrame.externalData = nullptr; streamFrame->videoFrame.externalDataSize = 0; }
+	void getDemuxerBuffer(StreamFrame *streamFrame) { streamFrame->audioFrame.data = nullptr; streamFrame->audioFrame.externalDataSize = 0; }
 	STATUS decodeFrame();
 };
 

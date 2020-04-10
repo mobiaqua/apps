@@ -50,6 +50,15 @@ STATUS DecoderVideoCodecEngine::deinit() {
 	return S_OK;
 }
 
+void DecoderVideoCodecEngine::getDemuxerBuffer(StreamFrame *streamFrame) {
+	if (streamFrame == nullptr) {
+		return;
+	}
+	streamFrame->videoFrame.data = nullptr;
+	streamFrame->videoFrame.dataSize = 0;
+	streamFrame->videoFrame.externalDataSize = 0;
+}
+
 STATUS DecoderVideoCodecEngine::decodeFrame(bool &frameReady, StreamFrame *streamFrame) {
 	return S_OK;
 }

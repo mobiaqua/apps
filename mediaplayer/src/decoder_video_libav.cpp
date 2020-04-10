@@ -157,6 +157,15 @@ STATUS DecoderVideoLibAV::deinit() {
 	return S_OK;
 }
 
+void DecoderVideoLibAV::getDemuxerBuffer(StreamFrame *streamFrame) {
+	if (streamFrame == nullptr) {
+		return;
+	}
+	streamFrame->videoFrame.data = nullptr;
+	streamFrame->videoFrame.dataSize = 0;
+	streamFrame->videoFrame.externalDataSize = 0;
+}
+
 STATUS DecoderVideoLibAV::decodeFrame(bool &frameReady, StreamFrame *streamFrame) {
 	if (_initialized == false) {
 		log->printf("DecoderVideoLibAV::decodeFrame(): not initialized!\n");
