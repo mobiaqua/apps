@@ -26,11 +26,18 @@
 #include "avtypes.h"
 #include "decoder_video_base.h"
 
+struct omap_bo;
+
 namespace MediaPLayer {
 
 typedef struct {
 	int     handle;
 } DisplayHandle;
+
+typedef struct {
+	void    *priv;
+	omap_bo *bo;
+} DisplayVideoBuffer;
 
 class Display {
 protected:
@@ -48,6 +55,8 @@ public:
 	virtual STATUS putImage(VideoFrame *frame) = 0;
 	virtual STATUS flip() = 0;
 	virtual STATUS getHandle(DisplayHandle *handle) = 0;
+	virtual STATUS getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height) = 0;
+	virtual STATUS releaseVideoBuffer(DisplayVideoBuffer *handle) = 0;
 };
 
 Display *CreateDisplay(DISPLAY_TYPE displayType);

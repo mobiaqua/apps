@@ -215,11 +215,7 @@ void DisplayOmapDrmEgl::internalDeinit() {
 	}
 
 	if (_renderTexture) {
-		eglDestroyImageKHR(_eglDisplay, _renderTexture);
-		glDeleteTextures(1, &_renderTexture->glTexture);
-		close(_renderTexture->dmabuf);
-		omap_bo_del(_renderTexture->bo);
-		delete _renderTexture;
+		releaseVideoBuffer(_renderTexture);
 		_renderTexture = nullptr;
 	}
 
@@ -653,6 +649,7 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 	if (!_initialized)
 		return S_FAIL;
 
+	RenderTexture *renderTexture;
 	uint32_t fourcc;
 	uint32_t stride;
 	uint32_t fbSize;
@@ -708,53 +705,16 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, coords);
 	glEnableVertexAttribArray(1);
 
-	if (!_renderTexture) {
-		_renderTexture = new RenderTexture;
-		memset(_renderTexture, 0, sizeof (RenderTexture));
-		if (frame->pixelfmt == FMT_YUV420P || frame->pixelfmt == FMT_NV12) {
-			fourcc = FOURCC_TI_NV12;
-			stride = frame->width;
-			fbSize = frame->width * frame->height * 3 / 2;
-		} else {
-			log->printf("DisplayOmapDrmEgl::putImage(): Can not handle pixel format!\n");
+	if (frame->hw) {
+		DisplayVideoBuffer *db = (DisplayVideoBuffer *)(frame->data[0]);
+		renderTexture = (RenderTexture *)db->priv;
+	} else if (!_renderTexture) {
+		_renderTexture = renderTexture = getVideoBuffer(frame->pixelfmt, frame->width, frame->height);
+		if (!_renderTexture) {
 			goto fail;
 		}
-
-		_renderTexture->bo = omap_bo_new(_omapDevice, fbSize, OMAP_BO_WC);
-		EGLint attr[] = {
-			EGL_GL_VIDEO_FOURCC_TI,      (EGLint)fourcc,
-			EGL_GL_VIDEO_WIDTH_TI,       (EGLint)frame->width,
-			EGL_GL_VIDEO_HEIGHT_TI,      (EGLint)frame->height,
-			EGL_GL_VIDEO_BYTE_SIZE_TI,   (EGLint)omap_bo_size(_renderTexture->bo),
-			EGL_GL_VIDEO_BYTE_STRIDE_TI, (EGLint)stride,
-			EGL_GL_VIDEO_YUV_FLAGS_TI,   EGLIMAGE_FLAGS_YUV_CONFORMANT_RANGE | EGLIMAGE_FLAGS_YUV_BT601,
-			EGL_NONE
-		};
-
-		_renderTexture->dmabuf = omap_bo_dmabuf(_renderTexture->bo);
-		_renderTexture->image = eglCreateImageKHR(_eglDisplay, EGL_NO_CONTEXT, EGL_RAW_VIDEO_TI_DMABUF, (EGLClientBuffer)_renderTexture->dmabuf, attr);
-		if (_renderTexture->image == EGL_NO_IMAGE_KHR) {
-			log->printf("DisplayOmapDrmEgl::configure(): failed to bind texture, error: %s\n", eglGetErrorStr(eglGetError()));
-			goto fail;
-		}
-
-		glGenTextures(1, &_renderTexture->glTexture);
-		glBindTexture(GL_TEXTURE_EXTERNAL_OES, _renderTexture->glTexture);
-		if (glGetError() != GL_NO_ERROR) {
-			log->printf("DisplayOmapDrmEgl::configure(): failed to bind texture, error: %s\n", eglGetErrorStr(eglGetError()));
-			goto fail;
-		}
-
-		glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, _renderTexture->image);
-		if (glGetError() != GL_NO_ERROR) {
-			log->printf("DisplayOmapDrmEgl::configure(): failed update texture, error: %s\n", eglGetErrorStr(eglGetError()));
-			goto fail;
-		}
-
-		glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	} else {
+		renderTexture = _renderTexture;
 	}
 
 	if (!frame->hw) {
@@ -763,7 +723,7 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 		int srcStride[4] = {};
 		int dstStride[4] = {};
 
-		uint8_t *dst = (uint8_t *)omap_bo_map(_renderTexture->bo);
+		uint8_t *dst = (uint8_t *)omap_bo_map(renderTexture->bo);
 		if (frame->pixelfmt == FMT_YUV420P) {
 			srcPtr[0] = frame->data[0];
 			srcPtr[1] = frame->data[1];
@@ -792,9 +752,9 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 
 			yuv420_to_nv12_open(&yuv420_frame_info, &nv12_frame_info);
 
-			omap_bo_cpu_prep(_renderTexture->bo, OMAP_GEM_WRITE);
+			omap_bo_cpu_prep(renderTexture->bo, OMAP_GEM_WRITE);
 			yuv420_to_nv12_convert(dstPtr, srcPtr, NULL, NULL);
-			omap_bo_cpu_fini(_renderTexture->bo, OMAP_GEM_WRITE);
+			omap_bo_cpu_fini(renderTexture->bo, OMAP_GEM_WRITE);
 		} else {
 			srcPtr[0] = frame->data[0];
 			srcPtr[1] = frame->data[1];
@@ -821,13 +781,18 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 					goto fail;
 				}
 			}
-			omap_bo_cpu_prep(_renderTexture->bo, OMAP_GEM_WRITE);
+			omap_bo_cpu_prep(renderTexture->bo, OMAP_GEM_WRITE);
 			sws_scale(_scaleCtx, srcPtr, srcStride, 0, frame->height, dstPtr, dstStride);
-			omap_bo_cpu_fini(_renderTexture->bo, OMAP_GEM_WRITE);
+			omap_bo_cpu_fini(renderTexture->bo, OMAP_GEM_WRITE);
 		}
 	}
 
-	glBindTexture(GL_TEXTURE_EXTERNAL_OES, _renderTexture->glTexture);
+	glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, renderTexture->glTexture);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 	return S_OK;
@@ -895,6 +860,117 @@ STATUS DisplayOmapDrmEgl::getHandle(DisplayHandle *handle) {
 		return S_FAIL;
 
 	handle->handle = _fd;
+
+	return S_OK;
+};
+
+DisplayOmapDrmEgl::RenderTexture *DisplayOmapDrmEgl::getVideoBuffer(FORMAT_VIDEO pixelfmt, int width, int height) {
+	DisplayVideoBuffer buffer;
+
+	if (getVideoBuffer(&buffer, pixelfmt, width, height) != S_OK) {
+		return nullptr;
+	}
+
+	return (DisplayOmapDrmEgl::RenderTexture *)buffer.priv;
+}
+
+STATUS DisplayOmapDrmEgl::getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height) {
+	if (!_initialized || handle == nullptr)
+		return S_FAIL;
+
+	uint32_t fourcc;
+	uint32_t stride;
+	uint32_t fbSize;
+
+	RenderTexture *renderTexture = new RenderTexture;
+	memset(renderTexture, 0, sizeof (RenderTexture));
+
+	if (pixelfmt == FMT_YUV420P || pixelfmt == FMT_NV12) {
+		fourcc = FOURCC_TI_NV12;
+		stride = width;
+		fbSize = width * height * 3 / 2;
+	} else {
+		log->printf("DisplayOmapDrmEgl::getVideoBuffer(): Can not handle pixel format!\n");
+		return S_FAIL;
+	}
+
+	handle->bo = renderTexture->bo = omap_bo_new(_omapDevice, fbSize, OMAP_BO_WC);
+
+	EGLint attr[] = {
+		EGL_GL_VIDEO_FOURCC_TI,      (EGLint)fourcc,
+		EGL_GL_VIDEO_WIDTH_TI,       (EGLint)width,
+		EGL_GL_VIDEO_HEIGHT_TI,      (EGLint)height,
+		EGL_GL_VIDEO_BYTE_SIZE_TI,   (EGLint)omap_bo_size(renderTexture->bo),
+		EGL_GL_VIDEO_BYTE_STRIDE_TI, (EGLint)stride,
+		EGL_GL_VIDEO_YUV_FLAGS_TI,   EGLIMAGE_FLAGS_YUV_CONFORMANT_RANGE | EGLIMAGE_FLAGS_YUV_BT601,
+		EGL_NONE
+	};
+
+	renderTexture->dmabuf = omap_bo_dmabuf(renderTexture->bo);
+	renderTexture->image = eglCreateImageKHR(_eglDisplay, EGL_NO_CONTEXT, EGL_RAW_VIDEO_TI_DMABUF, (EGLClientBuffer)renderTexture->dmabuf, attr);
+	if (renderTexture->image == EGL_NO_IMAGE_KHR) {
+		log->printf("DisplayOmapDrmEgl::getVideoBuffer(): failed to bind texture, error: %s\n", eglGetErrorStr(eglGetError()));
+		goto fail;
+	}
+
+	glGenTextures(1, &renderTexture->glTexture);
+	glBindTexture(GL_TEXTURE_EXTERNAL_OES, renderTexture->glTexture);
+	if (glGetError() != GL_NO_ERROR) {
+		log->printf("DisplayOmapDrmEgl::getVideoBuffer(): failed to bind texture, error: %s\n", eglGetErrorStr(eglGetError()));
+		goto fail;
+	}
+
+	glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, renderTexture->image);
+	if (glGetError() != GL_NO_ERROR) {
+		log->printf("DisplayOmapDrmEgl::getVideoBuffer(): failed update texture, error: %s\n", eglGetErrorStr(eglGetError()));
+		goto fail;
+	}
+
+	handle->priv = renderTexture;
+
+	return S_OK;
+
+fail:
+
+	if (renderTexture)
+		releaseVideoBuffer(renderTexture);
+
+	return S_FAIL;
+};
+
+STATUS DisplayOmapDrmEgl::releaseVideoBuffer(DisplayVideoBuffer *handle) {
+	if (!_initialized || handle == nullptr)
+		return S_FAIL;
+
+	RenderTexture *renderTexture = (RenderTexture *)handle->priv;
+	if (renderTexture == nullptr || _eglDisplay == nullptr)
+		return S_FAIL;
+
+	if (releaseVideoBuffer(renderTexture) != S_OK)
+		return S_FAIL;
+
+	handle->bo = nullptr;
+	handle->priv = nullptr;
+
+	return S_OK;
+};
+
+STATUS DisplayOmapDrmEgl::releaseVideoBuffer(RenderTexture *texture) {
+	if (!_initialized || texture == nullptr || _eglDisplay == nullptr)
+		return S_FAIL;
+
+	if (texture->image) {
+		eglDestroyImageKHR(_eglDisplay, texture->image);
+		glDeleteTextures(1, &texture->glTexture);
+	}
+
+	if (texture->dmabuf)
+		close(texture->dmabuf);
+
+	if (texture->bo)
+		omap_bo_del(texture->bo);
+
+	delete texture;
 
 	return S_OK;
 };

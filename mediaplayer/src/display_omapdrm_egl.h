@@ -50,10 +50,10 @@ private:
 	} DrmFb;
 
 	typedef struct {
-		omap_bo     *bo;
-		int         dmabuf;
-		EGLImageKHR image;
-		GLuint      glTexture;
+		struct omap_bo *bo;
+		int            dmabuf;
+		EGLImageKHR    image;
+		GLuint         glTexture;
 	} RenderTexture;
 
 	int                         _fd;
@@ -95,6 +95,8 @@ public:
 	STATUS putImage(VideoFrame *frame);
 	STATUS flip();
 	STATUS getHandle(DisplayHandle *handle);
+	STATUS getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height);
+	STATUS releaseVideoBuffer(DisplayVideoBuffer *handle);
 
 private:
 
@@ -104,6 +106,8 @@ private:
 	DrmFb *getDrmFb(gbm_bo *gbmBo);
 	static void pageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data);
 	const char* eglGetErrorStr(EGLint error);
+	RenderTexture *getVideoBuffer(FORMAT_VIDEO pixelfmt, int width, int height);
+	STATUS releaseVideoBuffer(RenderTexture *texture);
 };
 
 } // namespace

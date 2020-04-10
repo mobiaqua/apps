@@ -24,6 +24,7 @@
 
 #include "basetypes.h"
 #include "decoder_video_base.h"
+#include "display_base.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,8 +36,8 @@ extern "C" {
 #include <ti/xdais/dm/xdm.h>
 #include <ti/sdo/ce/Engine.h>
 #include <ti/sdo/ce/video3/viddec3.h>
-#include <ti/sdo/codecs/h264dec/ih264vdec.h>
-#include <ti/sdo/codecs/mpeg4dec/impeg4vdec.h>
+#include <ti/sdo/codecs/h264vdec/ih264vdec.h>
+#include <ti/sdo/codecs/mpeg4vdec/impeg4vdec.h>
 #include <ti/sdo/codecs/mpeg2vdec/impeg2vdec.h>
 #include <ti/sdo/codecs/vc1vdec/ivc1vdec.h>
 
@@ -45,6 +46,14 @@ namespace MediaPLayer {
 class DecoderVideoLibDCE : public DecoderVideo {
 
 private:
+
+	typedef struct {
+		DisplayVideoBuffer      buffer;
+		int						index;
+		bool                    locked;
+	} FrameBuffer;
+
+	Display                     *_display;
 	Engine_Handle              	_codecEngine;
 	VIDDEC3_Handle             	_codecHandle;
 	VIDDEC3_Params 				*_codecParams;
@@ -54,12 +63,13 @@ private:
 	XDM2_BufDesc				*_codecOutputBufs;
 	VIDDEC3_InArgs				*_codecInputArgs;
 	VIDDEC3_OutArgs				*_codecOutputArgs;
-	omap_device                 *_dceDev;
+	omap_device                 *_omapDev;
 	int           				_frameWidth;
 	int 						_frameHeight;
 	void                        *_inputBufPtr;
 	int                         _inputBufSize;
 	omap_bo                     *_inputBufBo;
+	FrameBuffer                 _frameBuffers[IVIDEO2_MAX_IO_BUFFERS]{};
 
 public:
 	DecoderVideoLibDCE();
@@ -72,8 +82,13 @@ public:
 	STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame);
 	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame);
 	FORMAT_VIDEO getVideoFmt(Demuxer * /*demuxer*/) { return FMT_NV12; }
-	int getVideoWidth(Demuxer *demuxer) { return 0; }
-	int getVideoHeight(Demuxer *demuxer) { return 0; }
+	int getVideoWidth(Demuxer *demuxer);
+	int getVideoHeight(Demuxer *demuxer);
+
+private:
+	FrameBuffer *getBuffer();
+	void lockBuffer(FrameBuffer *fb);
+	void unlockBuffer(FrameBuffer *fb);
 };
 
 } // namespace

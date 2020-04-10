@@ -23,13 +23,14 @@
 #include "logs.h"
 #include "decoder_video_libdce.h"
 #include "display_base.h"
+#include <string.h>
 
 namespace MediaPLayer {
 
 DecoderVideoLibDCE::DecoderVideoLibDCE() :
-		_codecEngine(nullptr), _codecHandle(nullptr), _codecParams(nullptr), _codecDynParams(nullptr),
+		_display(nullptr), _codecEngine(nullptr), _codecHandle(nullptr), _codecParams(nullptr), _codecDynParams(nullptr),
 		_codecStatus(0), _codecInputBufs(nullptr), _codecOutputBufs(nullptr),
-		_codecInputArgs(nullptr), _codecOutputArgs(nullptr), _dceDev(nullptr),
+		_codecInputArgs(nullptr), _codecOutputArgs(nullptr), _omapDev(nullptr),
 		_frameWidth(0), _frameHeight(0),_inputBufPtr(nullptr), _inputBufSize(0), _inputBufBo(nullptr) {
 	_bpp = 2;
 }
@@ -71,6 +72,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 	DisplayHandle displayHandle;
 	Int32 codecError;
 
+	_display = display;
 	if (display->getHandle(&displayHandle) != S_OK) {
 		log->printf("DecoderVideoLibDCE::init(): failed get display handle!\n");
         goto fail;
@@ -109,9 +111,9 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 	_frameWidth  = ALIGN2(info.width, 4);
 	_frameHeight = ALIGN2(info.height, 4);
 
-	dce_set_fd(displayHandle.handle1);
-	_dceDev = dce_init();
-	if (_dceDev == nullptr) {
+	dce_set_fd(displayHandle.handle);
+	_omapDev = dce_init();
+	if (_omapDev == nullptr) {
 		log->printf("DecoderVideoLibDCE::init(): failed init dce!\n");
         goto fail;
 	}
@@ -186,7 +188,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
         ((IH264VDEC_Params *)_codecParams)->debugTraceLevel = IH264VDEC_DEBUGTRACE_LEVEL0; // 0 - 3
         ((IH264VDEC_Params *)_codecParams)->lastNFramesToLog = 0;
         ((IH264VDEC_Params *)_codecParams)->enableDualOutput = IH264VDEC_DUALOUTPUT_DISABLE;
-        ((IH264VDEC_Params *)_codecParams)->processCallLevel = FALSE; // TRUE - for interace
+        ((IH264VDEC_Params *)_codecParams)->processCallLevel = FALSE; // TRUE - for interlace
         ((IH264VDEC_Params *)_codecParams)->enableWatermark = IH264VDEC_WATERMARK_DISABLE;
         ((IH264VDEC_Params *)_codecParams)->decodeFrameType = IH264VDEC_DECODE_ALL;
         _codecHandle = VIDDEC3_create(_codecEngine, (String)"ivahd_h264dec", _codecParams);
@@ -275,7 +277,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 		goto fail;
     }
 
-    _inputBufBo = omap_bo_new((omap_device *)displayHandle.handle2, _frameWidth * _frameHeight * 2, OMAP_BO_WC);
+    _inputBufBo = (omap_bo *)omap_bo_new(_omapDev, _frameWidth * _frameHeight, OMAP_BO_WC);
     if (!_inputBufBo) {
 		log->printf("DecoderVideoLibDCE::init(): Failed create input buffer\n");
 		goto fail;
@@ -286,7 +288,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
     _codecInputBufs->numBufs = 1;
     _codecInputBufs->descs[0].memType = XDM_MEMTYPE_BO;
     _codecInputBufs->descs[0].buf = (XDAS_Int8 *)omap_bo_handle(_inputBufBo);
-    _codecInputBufs->descs[0].bufSize.bytes = _inputBufSize;
+	_codecInputBufs->descs[0].bufSize.bytes = omap_bo_size(_inputBufBo);
 
     _codecOutputBufs->numBufs = 2;
     _codecOutputBufs->descs[0].memType = XDM_MEMTYPE_BO;
@@ -304,6 +306,12 @@ fail:
 	if (_inputBufBo) {
 		omap_bo_del(_inputBufBo);
 		_inputBufBo = nullptr;
+	}
+	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
+		if (_frameBuffers[i].buffer.priv) {
+			_display->releaseVideoBuffer(&_frameBuffers[i].buffer);
+			_frameBuffers[i].buffer = {};
+		}
 	}
 	if (_codecHandle) {
 		VIDDEC3_delete(_codecHandle);
@@ -344,9 +352,9 @@ fail:
 		_codecEngine = nullptr;
 	}
 
-	if (_dceDev) {
-		dce_deinit(_dceDev);
-		_dceDev = nullptr;
+	if (_omapDev) {
+		dce_deinit(_omapDev);
+		_omapDev = nullptr;
 	}
 
 	return S_FAIL;
@@ -355,6 +363,17 @@ fail:
 STATUS DecoderVideoLibDCE::deinit() {
 	if (!_initialized) {
 		return S_OK;
+	}
+
+	if (_inputBufBo) {
+		omap_bo_del(_inputBufBo);
+		_inputBufBo = nullptr;
+	}
+	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
+		if (_frameBuffers[i].buffer.priv) {
+			_display->releaseVideoBuffer(&_frameBuffers[i].buffer);
+			_frameBuffers[i].buffer = {};
+		}
 	}
 
 	if (_codecHandle && _codecDynParams && _codecParams) {
@@ -400,14 +419,9 @@ STATUS DecoderVideoLibDCE::deinit() {
 		_codecEngine = nullptr;
 	}
 
-	if (_dceDev) {
-		dce_deinit(_dceDev);
-		_dceDev = nullptr;
-	}
-
-	if (_inputBufBo) {
-		omap_bo_del(_inputBufBo);
-		_inputBufBo = nullptr;
+	if (_omapDev) {
+		dce_deinit(_omapDev);
+		_omapDev = nullptr;
 	}
 
 	_initialized = false;
@@ -416,11 +430,13 @@ STATUS DecoderVideoLibDCE::deinit() {
 }
 
 void DecoderVideoLibDCE::getDemuxerBuffer(StreamFrame *streamFrame) {
-	if (!_initialized) {
-		streamFrame->videoFrame.externalData = nullptr;
+	if (!_initialized || !streamFrame) {
+		streamFrame->videoFrame.data = nullptr;
+		streamFrame->videoFrame.dataSize = 0;
 		streamFrame->videoFrame.externalDataSize = 0;
 	} else {
-		streamFrame->videoFrame.externalData = (U8 *)_inputBufPtr;
+		streamFrame->videoFrame.data = (U8 *)_inputBufPtr;
+		streamFrame->videoFrame.dataSize = 0;
 		streamFrame->videoFrame.externalDataSize = _inputBufSize;
 	}
 }
@@ -428,6 +444,50 @@ void DecoderVideoLibDCE::getDemuxerBuffer(StreamFrame *streamFrame) {
 STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, StreamFrame *streamFrame) {
 	if (!_initialized) {
 		return S_FAIL;
+	}
+
+	FrameBuffer *fb = getBuffer();
+	if (!fb) {
+		return S_FAIL;
+	}
+
+	lockBuffer(fb);
+
+	frameReady = false;
+
+	omap_bo *bo = fb->buffer.bo;
+	_codecInputArgs->inputID = (XDAS_Int32)fb;
+	_codecInputArgs->numBytes = streamFrame->videoFrame.dataSize;
+
+	_codecInputBufs->descs[0].bufSize.bytes = streamFrame->videoFrame.dataSize;
+
+	_codecOutputBufs->descs[0].buf = (XDAS_Int8 *)omap_bo_handle(bo);
+
+	memset(_codecOutputArgs->outputID, 0, sizeof(_codecOutputArgs->outputID));
+	memset(_codecOutputArgs->freeBufID, 0, sizeof(_codecOutputArgs->freeBufID));
+
+	Int32 codecError = VIDDEC3_process(_codecHandle, _codecInputBufs, _codecOutputBufs, _codecInputArgs, _codecOutputArgs);
+	if (codecError != VIDDEC3_EOK) {
+		log->printf("DecoderVideoLibDCE::decodeFrame(): VIDDEC3_process() status: %d, extendedError: %08x\n",
+				codecError, _codecOutputArgs->extendedError);
+		unlockBuffer(fb);
+		if (XDM_ISFATALERROR(_codecOutputArgs->extendedError)) {
+			return S_FAIL;
+		}
+	}
+
+	if (_codecOutputArgs->outBufsInUseFlag)
+	{
+		return S_FAIL;
+	}
+
+	for (int i = 0; _codecOutputArgs->outputID[i]; i++) {
+		frameReady = true;
+		break;
+	}
+
+	for (int i = 0; _codecOutputArgs->freeBufID[i]; i++) {
+		unlockBuffer((FrameBuffer *)_codecOutputArgs->freeBufID[i]);
 	}
 
 	return S_OK;
@@ -438,7 +498,111 @@ STATUS DecoderVideoLibDCE::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFram
 		return S_FAIL;
 	}
 
+	int foundIndex = -1;
+	for (int i = 0; _codecOutputArgs->outputID[i]; i++) {
+		foundIndex = i;
+		break;
+	}
+	if (foundIndex == -1) {
+		return S_FAIL;
+	}
+
+	XDM_Rect *r = &_codecOutputArgs->displayBufs.bufDesc[0].activeFrameRegion;
+
+	videoFrame->pixelfmt = FMT_NV12;
+	videoFrame->data[0] = (U8 *)_codecOutputArgs->outputID[foundIndex];
+	videoFrame->data[1] = nullptr;
+	videoFrame->data[2] = nullptr;
+	videoFrame->data[3] = nullptr;
+	videoFrame->stride[0] = _frameWidth;
+	videoFrame->stride[1] = 0;
+	videoFrame->stride[2] = 0;
+	videoFrame->stride[3] = 0;
+	videoFrame->width = _frameWidth;
+	videoFrame->height = _frameHeight;
+	videoFrame->dx = r->topLeft.x;
+	videoFrame->dy = r->topLeft.y;
+	videoFrame->dw = r->bottomRight.x - r->topLeft.x;
+	videoFrame->dh = r->bottomRight.y - r->topLeft.y;
+	videoFrame->hw = true;
+
 	return S_OK;
+}
+
+int DecoderVideoLibDCE::getVideoWidth(Demuxer *demuxer) {
+	if (!_initialized) {
+		return 0;
+	}
+
+	return _frameWidth;
+}
+
+int DecoderVideoLibDCE::getVideoHeight(Demuxer *demuxer) {
+	if (!_initialized) {
+		return 0;
+	}
+
+	return _frameHeight;
+}
+
+DecoderVideoLibDCE::FrameBuffer *DecoderVideoLibDCE::getBuffer() {
+	if (!_initialized) {
+		return nullptr;
+	}
+
+	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
+		if (_frameBuffers[i].buffer.priv && !_frameBuffers[i].locked) {
+			return &_frameBuffers[i];
+		}
+		if (!_frameBuffers[i].buffer.priv && !_frameBuffers[i].locked) {
+			if (_display->getVideoBuffer(&_frameBuffers[i].buffer, FMT_NV12, _frameWidth, _frameHeight) != S_OK) {
+				log->printf("DecoderVideoLibDCE::getBuffer(): Failed create output buffer\n");
+				return nullptr;
+		    }
+		    _frameBuffers[i].index = i;
+		    _frameBuffers[i].locked = false;
+			return &_frameBuffers[i];
+		}
+	}
+
+	log->printf("DecoderVideoLibDCE::init(): No free slots for output buffer\n");
+	return nullptr;
+}
+
+void DecoderVideoLibDCE::lockBuffer(FrameBuffer *fb) {
+	if (!_initialized || !fb) {
+		return;
+	}
+
+	if (_frameBuffers[fb->index].locked) {
+		log->printf("DecoderVideoLibDCE::getBuffer(): Already locked frame buffer at index: %d\n", fb->index);
+		return;
+	}
+
+	if (!_frameBuffers[fb->index].buffer.priv) {
+		log->printf("DecoderVideoLibDCE::getBuffer(): Missing frame buffer at index: %d\n", fb->index);
+		return;
+	}
+
+	_frameBuffers[fb->index].locked = true;
+}
+
+void DecoderVideoLibDCE::unlockBuffer(FrameBuffer *fb) {
+	if (!_initialized || !fb) {
+		return;
+	}
+
+	if (!_frameBuffers[fb->index].locked) {
+		log->printf("DecoderVideoLibDCE::getBuffer(): Already unlocked frame buffer at index: %d\n", fb->index);
+		return;
+	}
+
+	if (!_frameBuffers[fb->index].buffer.priv) {
+		log->printf("DecoderVideoLibDCE::getBuffer(): Missing frame buffer at index: %d\n", fb->index);
+		return;
+	}
+
+	_frameBuffers[fb->index].locked = false;
 }
 
 } // namespace
