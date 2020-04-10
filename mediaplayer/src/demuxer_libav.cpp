@@ -93,6 +93,8 @@ STATUS DemuxerLibAV::selectVideoStream() {
 
 	for (U32 i = 0; i < _afc->nb_streams; i++) {
 		AVStream *stream = _afc->streams[i];
+		if (stream->codecpar->codec_id == AV_CODEC_ID_NONE)
+			continue;
 		AVCodec *codec = avcodec_find_decoder(stream->codecpar->codec_id);
 		if (codec == NULL) {
 			log->printf("DemuxerLibAV::selectVideoStream(): avcodec_find_decoder failed!\n");
@@ -346,6 +348,8 @@ STATUS DemuxerLibAV::selectAudioStream(S32 index_audio) {
 	S32 count_audio = 0;
 	for (U32 i = 0; i < _afc->nb_streams; i++) {
 		AVStream *stream = _afc->streams[i];
+		if (stream->codecpar->codec_id == AV_CODEC_ID_NONE)
+			continue;
 		AVCodec *codec = avcodec_find_decoder(stream->codecpar->codec_id);
 		if (codec == NULL) {
 			log->printf("DemuxerLibAV::selectAudioStream(): avcodec_find_decoder failed!\n");
