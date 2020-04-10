@@ -470,8 +470,8 @@ STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, StreamFrame *streamFram
 	if (codecError != VIDDEC3_EOK) {
 		log->printf("DecoderVideoLibDCE::decodeFrame(): VIDDEC3_process() status: %d, extendedError: %08x\n",
 				codecError, _codecOutputArgs->extendedError);
-		unlockBuffer(fb);
 		if (XDM_ISFATALERROR(_codecOutputArgs->extendedError)) {
+			unlockBuffer(fb);
 			return S_FAIL;
 		}
 	}
