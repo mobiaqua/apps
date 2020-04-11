@@ -88,7 +88,7 @@ public:
 	virtual STATUS selectVideoStream() = 0;
 	virtual STATUS selectAudioStream(S32 index_audio) = 0;
 	virtual STATUS seekFrame(float seek, U32 flags) = 0;
-	virtual STATUS readNextFrame(StreamFrame *frame) = 0;
+	virtual STATUS readNextFrame(StreamFrame *frame, bool hw) = 0;
 	virtual STATUS getVideoStreamInfo(StreamVideoInfo *info) = 0;
 };
 

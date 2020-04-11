@@ -53,7 +53,7 @@ public:
 	STATUS selectVideoStream();
 	STATUS selectAudioStream(S32 index_audio);
 	STATUS seekFrame(float seek, U32 flags);
-	STATUS readNextFrame(StreamFrame *frame);
+	STATUS readNextFrame(StreamFrame *frame, bool hw);
 	STATUS getVideoStreamInfo(StreamVideoInfo *info);
 };
 

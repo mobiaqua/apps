@@ -419,7 +419,7 @@ STATUS DemuxerLibAV::seekFrame(float seek, U32 flags) {
 	return S_OK;
 }
 
-STATUS DemuxerLibAV::readNextFrame(StreamFrame *frame) {
+STATUS DemuxerLibAV::readNextFrame(StreamFrame *frame, bool hw) {
 	if (!_initialized) {
 		log->printf("DemuxerLibAV::getNextFrame(): demuxer not opened!\n");
 		return S_FAIL;
@@ -436,7 +436,7 @@ STATUS DemuxerLibAV::readNextFrame(StreamFrame *frame) {
 
 	if (av_read_frame(_afc, &_packedFrame) == 0) {
 		if (_packedFrame.stream_index == _videoStream->index) {
-			if (_bsf) {
+			if (_bsf && hw) {
 				if (av_bsf_send_packet(_bsf, &_packedFrame) < 0) {
 					log->printf("DemuxerLibAV::getNextFrame(): av_bsf_send_packet failed!\n");
 					av_packet_unref(&_packedFrame);
