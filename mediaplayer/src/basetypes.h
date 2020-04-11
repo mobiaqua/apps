@@ -69,4 +69,8 @@ extern "C"
 #define ALIGN2(value, align) (((value) + ((1 << (align)) - 1)) & ~((1 << (align)) - 1))
 #endif
 
+#ifndef MK_FOURCC
+#define MK_FOURCC(a, b, c, d) ( (U32) (((d) << 24) | ((c) << 16) | ((b) << 8) | (a)) )
+#endif
+
 #endif

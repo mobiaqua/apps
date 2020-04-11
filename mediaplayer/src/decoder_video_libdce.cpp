@@ -52,13 +52,52 @@ bool DecoderVideoLibDCE::isCapable(Demuxer *demuxer) {
 		return false;
 	}
 
-	switch (info.codecId) {
-	case CODEC_ID_MPEG1VIDEO:
-	case CODEC_ID_MPEG2VIDEO:
-	case CODEC_ID_MPEG4:
-	case CODEC_ID_WMV3:
-	case CODEC_ID_VC1:
-	case CODEC_ID_H264:
+	switch (info.codecTag) {
+	case 0: {
+		switch (info.codecId) {
+		case CODEC_ID_MPEG2VIDEO:
+		case CODEC_ID_MPEG4:
+		case CODEC_ID_WMV3:
+		case CODEC_ID_VC1:
+		case CODEC_ID_H264:
+			return true;
+		default:
+			return false;
+		}
+	}
+	// H264:
+	case 0x10000005:
+	case 0x00000005:
+	case MK_FOURCC('H','2','6','4'):
+	case MK_FOURCC('h','2','6','4'):
+	case MK_FOURCC('X','2','6','4'):
+	case MK_FOURCC('x','2','6','4'):
+	case MK_FOURCC('A','V','C','1'):
+	case MK_FOURCC('a','v','c','1'):
+	// MPEG4:
+	case 0x10000004:
+	case 0x00000004:
+	case MK_FOURCC('F','M','P','4'):
+	case MK_FOURCC('f','m','p','4'):
+	case MK_FOURCC('X','V','I','D'):
+	case MK_FOURCC('D','X','5','0'):
+	case MK_FOURCC('D','X','G','M'):
+	// MPEG2:
+	case 0x10000002:
+	case 0x00000002:
+	case MK_FOURCC('m','p','g','2'):
+	case MK_FOURCC('M','P','G','2'):
+	case MK_FOURCC('M','7','0','1'):
+	case MK_FOURCC('m','2','v','1'):
+	case MK_FOURCC('m','2','2','v'):
+	case MK_FOURCC('m','p','g','v'):
+	// VC1:
+	case MK_FOURCC('W','V','C','1'):
+	case MK_FOURCC('w','v','c','1'):
+	case MK_FOURCC('V','C','-','1'):
+	case MK_FOURCC('v','c','-','1'):
+	// WMV3:
+	case MK_FOURCC('W','M','V','3'):
 		return true;
 	default:
 		return false;
@@ -526,7 +565,7 @@ STATUS DecoderVideoLibDCE::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFram
 	videoFrame->dh = r->bottomRight.y - r->topLeft.y;
 	videoFrame->hw = true;
 
-	if (_codecId == CODEC_ID_MPEG2VIDEO && _frameWidth == 720 && _frameHeight == 576) {
+	if (_codecId == CODEC_ID_MPEG2VIDEO && _frameWidth == 720 && (_frameHeight == 576 || _frameHeight == 480)) {
 		videoFrame->anistropicDVD = true;
 	}
 	if (_codecOutputArgs->displayBufs.bufDesc[0].contentType == IVIDEO_INTERLACED) {

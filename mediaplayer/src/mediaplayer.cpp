@@ -161,7 +161,7 @@ int Player(int argc, char *argv[]) {
 	for (;;) {
 		decoderVideo->getDemuxerBuffer(&inputFrame);
 		decoderAudio->getDemuxerBuffer(&inputFrame);
-		if (demuxer->readNextFrame(&inputFrame, hwAccel) != S_OK)
+		if (demuxer->readNextFrame(&inputFrame) != S_OK)
 			break;
 
 		bool frameReady = false;

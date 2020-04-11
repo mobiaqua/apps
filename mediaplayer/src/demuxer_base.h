@@ -55,6 +55,7 @@ typedef struct {
 
 typedef struct {
 	CODEC_ID     codecId;
+	U32          codecTag;
 	FORMAT_VIDEO pixelfmt;
 	U32          width;
 	U32          height;
@@ -65,6 +66,7 @@ typedef struct {
 
 typedef struct {
 	CODEC_ID     codecId;
+	U32          codecTag;
 	void        *priv; // used for non API purposes
 } StreamAudioInfo;
 
@@ -88,7 +90,7 @@ public:
 	virtual STATUS selectVideoStream() = 0;
 	virtual STATUS selectAudioStream(S32 index_audio) = 0;
 	virtual STATUS seekFrame(float seek, U32 flags) = 0;
-	virtual STATUS readNextFrame(StreamFrame *frame, bool hw) = 0;
+	virtual STATUS readNextFrame(StreamFrame *frame) = 0;
 	virtual STATUS getVideoStreamInfo(StreamVideoInfo *info) = 0;
 };
 

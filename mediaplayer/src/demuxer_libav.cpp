@@ -28,9 +28,9 @@ namespace MediaPLayer {
 
 DemuxerLibAV::DemuxerLibAV() :
 		_afc(nullptr), _videoStream(nullptr), _audioStream(nullptr),
-		_pts(0), _bsf(nullptr) {
-	memset(&_packedFrame, 0, sizeof(AVPacket));
-	memset(&_streamFrame, 0, sizeof(StreamFrame));
+		_pts(0), _bsf(nullptr), _firstWMV3frame(true), _extradataWMV3(0) {
+	_packedFrame = {};
+	_streamFrame = {};
 }
 
 DemuxerLibAV::~DemuxerLibAV() {
@@ -38,11 +38,23 @@ DemuxerLibAV::~DemuxerLibAV() {
 }
 
 STATUS DemuxerLibAV::init() {
+	if (_initialized)
+		return S_OK;
+
+	_firstWMV3frame = true;
+
+	_initialized = false;
+
 	return S_OK;
 }
 
 STATUS DemuxerLibAV::deinit() {
+	if (!_initialized)
+		return S_OK;
+
 	closeFile();
+
+	_initialized = false;
 
 	return S_OK;
 }
@@ -191,6 +203,10 @@ STATUS DemuxerLibAV::selectVideoStream() {
 						return S_FAIL;
 					}
 				}
+			} else if (cc->codec_id == AV_CODEC_ID_WMV3) {
+				if (cc->extradata && cc->extradata_size > 0 && _firstWMV3frame) {
+					_extradataWMV3 = *(uint32_t *)cc->extradata;
+				}
 			}
 
 			_videoStreamInfo.width = static_cast<U32>(cc->width);
@@ -198,6 +214,7 @@ STATUS DemuxerLibAV::selectVideoStream() {
 			_videoStreamInfo.timeBaseScale = static_cast<U32>(cc->time_base.num);
 			_videoStreamInfo.timeBaseRate = static_cast<U32>(cc->time_base.den);
 			_videoStreamInfo.priv = cc;
+			_videoStreamInfo.codecTag = cc->codec_tag;
 
 			switch (cc->codec_id) {
 			case AV_CODEC_ID_MPEG1VIDEO:
@@ -419,7 +436,7 @@ STATUS DemuxerLibAV::seekFrame(float seek, U32 flags) {
 	return S_OK;
 }
 
-STATUS DemuxerLibAV::readNextFrame(StreamFrame *frame, bool hw) {
+STATUS DemuxerLibAV::readNextFrame(StreamFrame *frame) {
 	if (!_initialized) {
 		log->printf("DemuxerLibAV::getNextFrame(): demuxer not opened!\n");
 		return S_FAIL;
@@ -436,7 +453,7 @@ STATUS DemuxerLibAV::readNextFrame(StreamFrame *frame, bool hw) {
 
 	if (av_read_frame(_afc, &_packedFrame) == 0) {
 		if (_packedFrame.stream_index == _videoStream->index) {
-			if (_bsf && hw) {
+			if (_bsf && frame->videoFrame.externalDataSize > 0) {
 				if (av_bsf_send_packet(_bsf, &_packedFrame) < 0) {
 					log->printf("DemuxerLibAV::getNextFrame(): av_bsf_send_packet failed!\n");
 					av_packet_unref(&_packedFrame);
@@ -452,24 +469,37 @@ STATUS DemuxerLibAV::readNextFrame(StreamFrame *frame, bool hw) {
 			_streamFrame.videoFrame.keyFrame = (_packedFrame.flags & AV_PKT_FLAG_KEY) != 0;
 			_streamFrame.videoFrame.dataSize = _packedFrame.size;
 			if (frame->videoFrame.externalDataSize > 0) {
-				if (frame->videoFrame.externalDataSize < _packedFrame.size) {
+				if (frame->videoFrame.externalDataSize < _streamFrame.videoFrame.dataSize) {
 					log->printf("DemuxerLibAV::getNextFrame(): external buffer too small for video frame!\n");
 					av_packet_unref(&_packedFrame);
 					return S_FAIL;
 				}
 				_streamFrame.videoFrame.data = frame->videoFrame.data;
 				_streamFrame.videoFrame.externalDataSize = frame->videoFrame.externalDataSize;
-				memcpy(_streamFrame.videoFrame.data, _packedFrame.data, _packedFrame.size);
+				if (_firstWMV3frame && _videoStreamInfo.codecId == CODEC_ID_WMV3) {
+					uint32_t *ptr = (uint32_t *)_streamFrame.videoFrame.data;
+		            ptr[0] = 0xc5ffffff;
+		            ptr[1] = 4;
+		            ptr[2] = (1 << 24) | _extradataWMV3;
+		            ptr[3] = _videoStreamInfo.height;
+		            ptr[4] = _videoStreamInfo.width;
+		            ptr[5] = 0xc;
+		            memset(ptr + 6, 0, 30);
+					memcpy(_streamFrame.videoFrame.data + 36, _packedFrame.data, _packedFrame.size);
+					_firstWMV3frame = false;
+				} else {
+					memcpy(_streamFrame.videoFrame.data, _packedFrame.data, _packedFrame.size);
+				}
 			} else {
 				_streamFrame.videoFrame.data = static_cast<U8 *>(av_malloc(_packedFrame.size + AV_INPUT_BUFFER_PADDING_SIZE));
 				memcpy(_streamFrame.videoFrame.data, _packedFrame.data, _packedFrame.size);
 				memset(_streamFrame.videoFrame.data + _packedFrame.size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
 			}
 			_streamFrame.priv = &_packedFrame;
-		} else if (_packedFrame.stream_index == _audioStream->index) {
+		} else if (_audioStream && _packedFrame.stream_index == _audioStream->index) {
 			_streamFrame.audioFrame.dataSize = _packedFrame.size;
 			if (frame->audioFrame.externalDataSize > 0) {
-				if (frame->audioFrame.externalDataSize < _packedFrame.size) {
+				if (frame->audioFrame.externalDataSize < _streamFrame.audioFrame.dataSize) {
 					log->printf("DemuxerLibAV::getNextFrame(): external buffer too small for audio frame!\n");
 					av_packet_unref(&_packedFrame);
 					return S_FAIL;

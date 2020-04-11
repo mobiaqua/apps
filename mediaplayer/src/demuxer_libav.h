@@ -41,6 +41,8 @@ private:
 	AVPacket                    _packedFrame;
 	StreamVideoInfo 			_videoStreamInfo;
 	AVBSFContext               *_bsf;
+	bool                        _firstWMV3frame;
+	uint32_t                    _extradataWMV3;
 
 public:
 	DemuxerLibAV();
@@ -53,7 +55,7 @@ public:
 	STATUS selectVideoStream();
 	STATUS selectAudioStream(S32 index_audio);
 	STATUS seekFrame(float seek, U32 flags);
-	STATUS readNextFrame(StreamFrame *frame, bool hw);
+	STATUS readNextFrame(StreamFrame *frame);
 	STATUS getVideoStreamInfo(StreamVideoInfo *info);
 };
 

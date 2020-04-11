@@ -729,7 +729,7 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 		int dstStride[4] = {};
 
 		uint8_t *dst = (uint8_t *)omap_bo_map(renderTexture->bo);
-		if (frame->pixelfmt == FMT_YUV420P) {
+		if (frame->pixelfmt == FMT_YUV420P && (ALIGN2(frame->width, 5) == frame->width)) {
 			srcPtr[0] = frame->data[0];
 			srcPtr[1] = frame->data[1];
 			srcPtr[2] = frame->data[2];
@@ -760,7 +760,7 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 			omap_bo_cpu_prep(renderTexture->bo, OMAP_GEM_WRITE);
 			yuv420_to_nv12_convert(dstPtr, srcPtr, NULL, NULL);
 			omap_bo_cpu_fini(renderTexture->bo, OMAP_GEM_WRITE);
-		} else {
+		} else if (frame->pixelfmt == FMT_YUV420P) {
 			srcPtr[0] = frame->data[0];
 			srcPtr[1] = frame->data[1];
 			srcPtr[2] = frame->data[2];
@@ -789,6 +789,9 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 			omap_bo_cpu_prep(renderTexture->bo, OMAP_GEM_WRITE);
 			sws_scale(_scaleCtx, srcPtr, srcStride, 0, frame->height, dstPtr, dstStride);
 			omap_bo_cpu_fini(renderTexture->bo, OMAP_GEM_WRITE);
+		} else {
+			log->printf("DisplayOmapDrm::putImage(): Not supported format!\n");
+			goto fail;
 		}
 	}
 
