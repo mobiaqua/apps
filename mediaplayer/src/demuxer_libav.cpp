@@ -517,6 +517,7 @@ STATUS DemuxerLibAV::readNextFrame(StreamFrame *frame) {
 			_streamFrame.priv = &_packedFrame;
 		}
 
+		av_packet_unref(&_packedFrame);
 		memcpy(frame, &_streamFrame, sizeof(StreamFrame));
 		return S_OK;
 	}
