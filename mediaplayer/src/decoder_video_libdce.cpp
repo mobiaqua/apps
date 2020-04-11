@@ -31,7 +31,8 @@ DecoderVideoLibDCE::DecoderVideoLibDCE() :
 		_display(nullptr), _codecEngine(nullptr), _codecHandle(nullptr), _codecParams(nullptr), _codecDynParams(nullptr),
 		_codecStatus(0), _codecInputBufs(nullptr), _codecOutputBufs(nullptr),
 		_codecInputArgs(nullptr), _codecOutputArgs(nullptr), _omapDev(nullptr),
-		_frameWidth(0), _frameHeight(0),_inputBufPtr(nullptr), _inputBufSize(0), _inputBufBo(nullptr) {
+		_frameWidth(0), _frameHeight(0),_inputBufPtr(nullptr), _inputBufSize(0), _inputBufBo(nullptr),
+		_codecId(CODEC_ID_NONE) {
 	_bpp = 2;
 }
 
@@ -67,7 +68,6 @@ bool DecoderVideoLibDCE::isCapable(Demuxer *demuxer) {
 }
 
 STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
-	unsigned int codecId = CODEC_ID_NONE;
 	Engine_Error engineError;
 	DisplayHandle displayHandle;
 	Int32 codecError;
@@ -86,22 +86,22 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 
 	switch (info.codecId) {
 	case CODEC_ID_MPEG1VIDEO:
-		codecId = CODEC_ID_MPEG1VIDEO;
+		_codecId = CODEC_ID_MPEG1VIDEO;
 		break;
 	case CODEC_ID_MPEG2VIDEO:
-		codecId = CODEC_ID_MPEG2VIDEO;
+		_codecId = CODEC_ID_MPEG2VIDEO;
 		break;
 	case CODEC_ID_MPEG4:
-		codecId = CODEC_ID_MPEG4;
+		_codecId = CODEC_ID_MPEG4;
 		break;
 	case CODEC_ID_WMV3:
-		codecId = CODEC_ID_WMV3;
+		_codecId = CODEC_ID_WMV3;
 		break;
 	case CODEC_ID_VC1:
-		codecId = CODEC_ID_VC1;
+		_codecId = CODEC_ID_VC1;
 		break;
 	case CODEC_ID_H264:
-		codecId = CODEC_ID_H264;
+		_codecId = CODEC_ID_H264;
 		break;
 	default:
 		log->printf("DecoderVideoLibDCE::init(): not supported codec!\n");
@@ -124,7 +124,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
         goto fail;
 	}
 
-	switch (codecId) {
+	switch (_codecId) {
     case CODEC_ID_H264:
         _codecParams = (VIDDEC3_Params *)dce_alloc(sizeof(IH264VDEC_Params));
         break;
@@ -140,7 +140,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
     	_codecParams = (VIDDEC3_Params *)dce_alloc(sizeof(IVC1VDEC_Params));
         break;
     default:
-		log->printf("DecoderVideoLibDCE::init(): Unsupported codec %08x\n", codecId);
+		log->printf("DecoderVideoLibDCE::init(): Unsupported codec %08x\n", _codecId);
         goto fail;
     }
 
@@ -167,7 +167,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
     _codecParams->metadataType[1] = IVIDEO_METADATAPLANE_NONE;
     _codecParams->metadataType[2] = IVIDEO_METADATAPLANE_NONE;
 
-    switch (codecId) {
+    switch (_codecId) {
     case CODEC_ID_H264:
     	_frameWidth = ALIGN2(_frameWidth + (32 * 2), 7);
     	_frameHeight = _frameHeight + 4 * 24;
@@ -232,7 +232,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 		log->printf("DecoderVideoLibDCE::init(): using ivahd_vc1dec\n");
         break;
     default:
-		log->printf("DecoderVideoLibDCE::init(): Unsupported codec %08x\n", codecId);
+		log->printf("DecoderVideoLibDCE::init(): Unsupported codec %08x\n", _codecId);
 		goto fail;
     }
 
@@ -258,7 +258,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
     _codecDynParams->frameSkipMode = IVIDEO_NO_SKIP;
     _codecDynParams->newFrameFlag = XDAS_TRUE;
     _codecDynParams->lateAcquireArg = 0;
-    if (codecId == CODEC_ID_MPEG4 || codecId == CODEC_ID_VC1 || codecId == CODEC_ID_WMV3) {
+    if (_codecId == CODEC_ID_MPEG4 || _codecId == CODEC_ID_VC1 || _codecId == CODEC_ID_WMV3) {
     	_codecDynParams->lateAcquireArg = -1;
     }
 
@@ -476,8 +476,8 @@ STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, StreamFrame *streamFram
 		}
 	}
 
-	if (_codecOutputArgs->outBufsInUseFlag)
-	{
+	if (_codecOutputArgs->outBufsInUseFlag) {
+		log->printf("DecoderVideoLibDCE::decodeFrame(): VIDDEC3_process() status: outBufsInUseFlag\n");
 		return S_FAIL;
 	}
 
@@ -525,6 +525,24 @@ STATUS DecoderVideoLibDCE::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFram
 	videoFrame->dw = r->bottomRight.x - r->topLeft.x;
 	videoFrame->dh = r->bottomRight.y - r->topLeft.y;
 	videoFrame->hw = true;
+
+	if (_codecId == CODEC_ID_MPEG2VIDEO && _frameWidth == 720 && _frameHeight == 576) {
+		videoFrame->anistropicDVD = true;
+	}
+	if (_codecOutputArgs->displayBufs.bufDesc[0].contentType == IVIDEO_INTERLACED) {
+		videoFrame->interlaced = true;
+	}
+	if (_codecOutputArgs->displayBufs.bufDesc[0].contentType == IVIDEO_INTERLACED_TOPFIELD) {
+		log->printf("DecoderVideoLibDCE::getVideoStreamOutputFrame(): IVIDEO_INTERLACED_TOPFIELD\n");
+	}
+	if (_codecOutputArgs->displayBufs.bufDesc[0].contentType == IVIDEO_INTERLACED_BOTTOMFIELD) {
+		log->printf("DecoderVideoLibDCE::getVideoStreamOutputFrame(): IVIDEO_INTERLACED_BOTTOMFIELD\n");
+	}
+	if (_codecOutputArgs->displayBufs.bufDesc[0].topFieldFirstFlag) {
+	}
+	if (_codecOutputArgs->displayBufs.bufDesc[0].repeatFirstFieldFlag) {
+		log->printf("DecoderVideoLibDCE::getVideoStreamOutputFrame(): repeatFirstFieldFlag\n");
+	}
 
 	return S_OK;
 }

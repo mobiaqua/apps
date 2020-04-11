@@ -70,6 +70,7 @@ private:
 	int                         _inputBufSize;
 	omap_bo                     *_inputBufBo;
 	FrameBuffer                 _frameBuffers[IVIDEO2_MAX_IO_BUFFERS]{};
+	unsigned int 				_codecId;
 
 public:
 	DecoderVideoLibDCE();

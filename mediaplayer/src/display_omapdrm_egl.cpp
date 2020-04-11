@@ -670,14 +670,19 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	x = (float)(frame->dw) / _fbWidth;
-	y = (float)(frame->dh) / _fbHeight;
-	if (x > y) {
-		y /= x;
+	if (frame->anistropicDVD) {
 		x = 1;
-	} else {
-		x /= y;
 		y = 1;
+	} else {
+		x = (float)(frame->dw) / _fbWidth;
+		y = (float)(frame->dh) / _fbHeight;
+		if (x > y) {
+			y /= x;
+			x = 1;
+		} else {
+			x /= y;
+			y = 1;
+		}
 	}
 
 	GLfloat position[8];
