@@ -484,7 +484,9 @@ STATUS DemuxerLibAV::readNextFrame(StreamFrame *frame) {
 		            ptr[3] = _videoStreamInfo.height;
 		            ptr[4] = _videoStreamInfo.width;
 		            ptr[5] = 0xc;
-		            memset(ptr + 6, 0, 30);
+		            ptr[6] = 0;
+		            ptr[7] = 0;
+		            ptr[8] = 0;
 					memcpy(_streamFrame.videoFrame.data + 36, _packedFrame.data, _packedFrame.size);
 					_firstWMV3frame = false;
 				} else {

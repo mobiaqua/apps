@@ -58,7 +58,7 @@ bool DecoderVideoLibDCE::isCapable(Demuxer *demuxer) {
 		case CODEC_ID_MPEG2VIDEO:
 		case CODEC_ID_MPEG4:
 		case CODEC_ID_WMV3:
-		case CODEC_ID_VC1:
+//		case CODEC_ID_VC1:
 		case CODEC_ID_H264:
 			return true;
 		default:
@@ -92,10 +92,10 @@ bool DecoderVideoLibDCE::isCapable(Demuxer *demuxer) {
 	case MK_FOURCC('m','2','2','v'):
 	case MK_FOURCC('m','p','g','v'):
 	// VC1:
-	case MK_FOURCC('W','V','C','1'):
+/*	case MK_FOURCC('W','V','C','1'):
 	case MK_FOURCC('w','v','c','1'):
 	case MK_FOURCC('V','C','-','1'):
-	case MK_FOURCC('v','c','-','1'):
+	case MK_FOURCC('v','c','-','1'):*/
 	// WMV3:
 	case MK_FOURCC('W','M','V','3'):
 		return true;
