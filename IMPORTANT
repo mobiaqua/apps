@@ -1,6 +1,6 @@
 
 Requirements:
-- MacOS X
+- macOS
 - Latest stable Eclipse IDE for C/C++ Developers
 - GNU ARM Eclipse Plug-in
 - MobiAqua OE target builded
