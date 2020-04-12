@@ -52,6 +52,11 @@ STATUS DemuxerLibAV::deinit() {
 	if (!_initialized)
 		return S_OK;
 
+	if (_bsf) {
+		av_bsf_free(&_bsf);
+		_bsf = nullptr;
+	}
+
 	closeFile();
 
 	_initialized = false;
