@@ -337,6 +337,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
     _codecOutputBufs->descs[1].bufSize.bytes = _frameWidth * (_frameHeight / 2);
 
 	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
+		_frameBuffers[i] = {};
 		if (_display->getVideoBuffer(&_frameBuffers[i].buffer, FMT_NV12, _frameWidth, _frameHeight) != S_OK) {
 			log->printf("DecoderVideoLibDCE::getBuffer(): Failed create output buffer\n");
 			goto fail;
