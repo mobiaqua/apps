@@ -725,7 +725,7 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 		int srcStride[4] = {};
 		int dstStride[4] = {};
 
-		uint8_t *dst = (uint8_t *)omap_bo_map(renderTexture->bo);
+		uint8_t *dst = (uint8_t *)renderTexture->mapPtr;
 		if (frame->pixelfmt == FMT_YUV420P && (ALIGN2(frame->width, 5) == frame->width)) {
 			srcPtr[0] = frame->data[0];
 			srcPtr[1] = frame->data[1];
@@ -900,6 +900,8 @@ STATUS DisplayOmapDrmEgl::getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDE
 	}
 
 	handle->bo = renderTexture->bo = omap_bo_new(_omapDevice, fbSize, OMAP_BO_WC);
+	handle->boHandle = omap_bo_handle(handle->bo);
+	renderTexture->mapPtr = omap_bo_map(handle->bo);
 
 	EGLint attr[] = {
 		EGL_GL_VIDEO_FOURCC_TI,      (EGLint)fourcc,

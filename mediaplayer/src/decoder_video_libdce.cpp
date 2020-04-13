@@ -501,13 +501,12 @@ STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, StreamFrame *streamFram
 
 	frameReady = false;
 
-	omap_bo *bo = fb->buffer.bo;
 	_codecInputArgs->inputID = (XDAS_Int32)fb;
 	_codecInputArgs->numBytes = streamFrame->videoFrame.dataSize;
 
 	_codecInputBufs->descs[0].bufSize.bytes = streamFrame->videoFrame.dataSize;
 
-	_codecOutputBufs->descs[0].buf = (XDAS_Int8 *)omap_bo_handle(bo);
+	_codecOutputBufs->descs[0].buf = (XDAS_Int8 *)fb->buffer.boHandle;
 
 	memset(_codecOutputArgs->outputID, 0, sizeof(_codecOutputArgs->outputID));
 	memset(_codecOutputArgs->freeBufID, 0, sizeof(_codecOutputArgs->freeBufID));

@@ -52,6 +52,7 @@ private:
 	typedef struct {
 		struct omap_bo *bo;
 		int            dmabuf;
+		void           *mapPtr;
 		EGLImageKHR    image;
 		GLuint         glTexture;
 	} RenderTexture;

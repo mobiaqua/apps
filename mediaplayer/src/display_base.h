@@ -37,6 +37,7 @@ typedef struct {
 typedef struct {
 	void    *priv;
 	omap_bo *bo;
+	U32     boHandle;
 } DisplayVideoBuffer;
 
 class Display {
