@@ -336,21 +336,29 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
     _codecOutputBufs->descs[1].buf = (XDAS_Int8 *)(_frameWidth * _frameHeight);
     _codecOutputBufs->descs[1].bufSize.bytes = _frameWidth * (_frameHeight / 2);
 
+	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
+		if (_display->getVideoBuffer(&_frameBuffers[i].buffer, FMT_NV12, _frameWidth, _frameHeight) != S_OK) {
+			log->printf("DecoderVideoLibDCE::getBuffer(): Failed create output buffer\n");
+			goto fail;
+	    }
+	    _frameBuffers[i].index = i;
+	    _frameBuffers[i].locked = false;
+	}
 	_initialized = true;
 
 	return S_OK;
 
 fail:
 
-	if (_inputBufBo) {
-		omap_bo_del(_inputBufBo);
-		_inputBufBo = nullptr;
-	}
 	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
 		if (_frameBuffers[i].buffer.priv) {
 			_display->releaseVideoBuffer(&_frameBuffers[i].buffer);
-			_frameBuffers[i].buffer = {};
+			_frameBuffers[i] = {};
 		}
+	}
+	if (_inputBufBo) {
+		omap_bo_del(_inputBufBo);
+		_inputBufBo = nullptr;
 	}
 	if (_codecHandle) {
 		VIDDEC3_delete(_codecHandle);
@@ -404,15 +412,15 @@ STATUS DecoderVideoLibDCE::deinit() {
 		return S_OK;
 	}
 
-	if (_inputBufBo) {
-		omap_bo_del(_inputBufBo);
-		_inputBufBo = nullptr;
-	}
 	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
 		if (_frameBuffers[i].buffer.priv) {
 			_display->releaseVideoBuffer(&_frameBuffers[i].buffer);
-			_frameBuffers[i].buffer = {};
+			_frameBuffers[i] = {};
 		}
+	}
+	if (_inputBufBo) {
+		omap_bo_del(_inputBufBo);
+		_inputBufBo = nullptr;
 	}
 
 	if (_codecHandle && _codecDynParams && _codecParams) {
@@ -489,8 +497,6 @@ STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, StreamFrame *streamFram
 	if (!fb) {
 		return S_FAIL;
 	}
-
-	lockBuffer(fb);
 
 	frameReady = false;
 
@@ -609,15 +615,7 @@ DecoderVideoLibDCE::FrameBuffer *DecoderVideoLibDCE::getBuffer() {
 
 	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
 		if (_frameBuffers[i].buffer.priv && !_frameBuffers[i].locked) {
-			return &_frameBuffers[i];
-		}
-		if (!_frameBuffers[i].buffer.priv && !_frameBuffers[i].locked) {
-			if (_display->getVideoBuffer(&_frameBuffers[i].buffer, FMT_NV12, _frameWidth, _frameHeight) != S_OK) {
-				log->printf("DecoderVideoLibDCE::getBuffer(): Failed create output buffer\n");
-				return nullptr;
-		    }
-		    _frameBuffers[i].index = i;
-		    _frameBuffers[i].locked = false;
+		    _frameBuffers[i].locked = true;
 			return &_frameBuffers[i];
 		}
 	}
