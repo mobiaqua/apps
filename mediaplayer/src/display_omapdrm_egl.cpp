@@ -667,9 +667,6 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 		goto fail;
 	}
 
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
 	if (frame->anistropicDVD) {
 		x = 1;
 		y = 1;
