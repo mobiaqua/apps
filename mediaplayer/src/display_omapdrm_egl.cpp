@@ -804,8 +804,6 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, renderTexture->glTexture);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-	eglSwapBuffers(_eglDisplay, _eglSurface);
-
 	return S_OK;
 
 fail:
@@ -821,6 +819,8 @@ void DisplayOmapDrmEgl::pageFlipHandler(int fd, unsigned int frame, unsigned int
 STATUS DisplayOmapDrmEgl::flip() {
 	if (!_initialized)
 		return S_FAIL;
+
+	eglSwapBuffers(_eglDisplay, _eglSurface);
 
 	gbm_bo *gbmBo = gbm_surface_lock_front_buffer(_gbmSurface);
 	DrmFb *drmFb = getDrmFb(gbmBo);
