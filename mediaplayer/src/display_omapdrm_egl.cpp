@@ -548,12 +548,13 @@ STATUS DisplayOmapDrmEgl::configure(FORMAT_VIDEO videoFmt, int videoFps, int vid
 
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
+
+	gbmBo = gbm_surface_lock_front_buffer(_gbmSurface);
 	if (!eglSwapBuffers(_eglDisplay, _eglSurface)) {
 		log->printf("DisplayOmapDrmEgl::configure(): failed to swap buffers, error: %s!\n", eglGetErrorStr(eglGetError()));
 		goto fail;
 	}
 
-	gbmBo = gbm_surface_lock_front_buffer(_gbmSurface);
 	drmFb = getDrmFb(gbmBo);
 	if (drmModeSetCrtc(_fd, _crtcId, drmFb->fbId, 0, 0, &_connectorId, 1, &_modeInfo) < 0) {
 		log->printf("DisplayOmapDrmEgl::configure(): failed set crtc: %s\n", strerror(errno));
@@ -804,33 +805,42 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, renderTexture->glTexture);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+	glFlush();
+
 	return S_OK;
 
 fail:
 	return S_FAIL;
 }
 
-static bool flipDone;
+static bool flipPending = false;
 
 void DisplayOmapDrmEgl::pageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data) {
-	flipDone = true;
+	flipPending = false;
 }
 
 STATUS DisplayOmapDrmEgl::flip() {
+	gbm_bo *gbmBo;
+	DrmFb *drmFb;
+
 	if (!_initialized)
 		return S_FAIL;
 
+	gbmBo = gbm_surface_lock_front_buffer(_gbmSurface);
+
 	eglSwapBuffers(_eglDisplay, _eglSurface);
 
-	gbm_bo *gbmBo = gbm_surface_lock_front_buffer(_gbmSurface);
-	DrmFb *drmFb = getDrmFb(gbmBo);
+	drmFb = getDrmFb(gbmBo);
 	if (drmModePageFlip(_fd, _crtcId, drmFb->fbId, DRM_MODE_PAGE_FLIP_EVENT, this)) {
 		log->printf("DisplayOmapDrmEgl::flip(): Can not flip buffer! %s\n", strerror(errno));
 		goto fail;
 	}
 
-	flipDone = false;
-	while (!flipDone) {
+	gbm_surface_release_buffer(_gbmSurface, gbmBo);
+
+	flipPending = true;
+
+	while (flipPending) {
 		drmEventContext drmEvent{};
 		drmEventContext drmEventContext{};
 		drmEventContext.version = DRM_EVENT_CONTEXT_VERSION;
@@ -852,9 +862,8 @@ STATUS DisplayOmapDrmEgl::flip() {
 			}
 		}
 		drmHandleEvent(_fd, &drmEventContext);
+		break;
 	}
-
-	gbm_surface_release_buffer(_gbmSurface, gbmBo);
 
 	return S_OK;
 
