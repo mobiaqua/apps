@@ -19,8 +19,8 @@
  *
  */
 
-#ifndef DISPLAY_OMAPDRM_H
-#define DISPLAY_OMAPDRM_H
+#ifndef DISPLAY_OMAPDRM_EGL_H
+#define DISPLAY_OMAPDRM_EGL_H
 
 #include "display_base.h"
 #include "basetypes.h"
