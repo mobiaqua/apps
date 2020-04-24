@@ -49,6 +49,7 @@ int Player(int argc, char *argv[]) {
 	StreamVideoInfo info;
 	bool hwAccel = false;
 	StreamFrame inputFrame{};
+	DISPLAY_TYPE prefferedDisplay = DISPLAY_OMAPDRM_EGL;
 
 	if (CreateLogs() == S_FAIL)
 		goto end;
@@ -91,7 +92,7 @@ int Player(int argc, char *argv[]) {
 		goto end;
 	}
 
-	display = CreateDisplay(DISPLAY_OMAPDRM_EGL);
+	display = CreateDisplay(prefferedDisplay);
 	if (display == nullptr) {
 		log->printf("Failed get handle to OAMP DRM display!\n");
 		goto end;
