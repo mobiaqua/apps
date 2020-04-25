@@ -37,7 +37,7 @@ extern "C"
 namespace MediaPLayer {
 
 #define NUM_OSD_FB   2
-#define NUM_VIDEO_FB 2
+#define NUM_VIDEO_FB 3
 
 class DisplayOmapDrm : public Display {
 private:

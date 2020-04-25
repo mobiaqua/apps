@@ -507,30 +507,30 @@ fail:
 	return S_FAIL;
 }
 
-static bool flipPending = false;
-
 void DisplayOmapDrm::pageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data) {
 	DisplayOmapDrm *context = (DisplayOmapDrm *)data;
-	if (drmModeSetPlane(context->_fd, context->_planeId, context->_crtcId,
-			context->_videoBuffers[context->_currentVideoBuffer].fbId, 0,
-				0, 0, context->_modeInfo.hdisplay, context->_modeInfo.vdisplay,
-				context->_videoBuffers[context->_currentVideoBuffer].dstX << 16,
-				context->_videoBuffers[context->_currentVideoBuffer].dstY << 16,
-				context->_videoBuffers[context->_currentVideoBuffer].dstWidth << 16,
-				context->_videoBuffers[context->_currentVideoBuffer].dstHeight << 16
-				)) {
-		log->printf("DisplayOmapDrm::flip(): failed set plane: %s\n", strerror(errno));
-		return;
-	}
-	if (++context->_currentVideoBuffer >= NUM_VIDEO_FB)
-		context->_currentVideoBuffer = 0;
-
-	flipPending = false;
 }
 
 STATUS DisplayOmapDrm::flip() {
+	drmEventContext drmEvent{};
+	drmEventContext drmEventContext{};
+
 	if (!_initialized)
 		return S_FAIL;
+
+	if (drmModeSetPlane(_fd, _planeId, _crtcId,
+				_videoBuffers[_currentVideoBuffer].fbId, 0,
+				0, 0, _modeInfo.hdisplay, _modeInfo.vdisplay,
+				_videoBuffers[_currentVideoBuffer].dstX << 16,
+				_videoBuffers[_currentVideoBuffer].dstY << 16,
+				_videoBuffers[_currentVideoBuffer].dstWidth << 16,
+				_videoBuffers[_currentVideoBuffer].dstHeight << 16
+				)) {
+		log->printf("DisplayOmapDrm::flip(): failed set plane: %s\n", strerror(errno));
+		goto fail;
+	}
+	if (++_currentVideoBuffer >= NUM_VIDEO_FB)
+		_currentVideoBuffer = 0;
 
 	if (++_currentOSDBuffer >= NUM_OSD_FB)
 		_currentOSDBuffer = 0;
@@ -539,32 +539,9 @@ STATUS DisplayOmapDrm::flip() {
 		goto fail;
 	}
 
-	flipPending = true;
-
-	while (flipPending) {
-		drmEventContext drmEvent{};
-		drmEventContext drmEventContext{};
-		drmEventContext.version = 2;
-		drmEventContext.page_flip_handler = pageFlipHandler;
-		fd_set fds{};
-		FD_SET(_fd, &fds);
-		struct timeval timeout = {
-			.tv_sec = 3,
-			.tv_usec = 0,
-			};
-
-		int result = select(_fd + 1, &fds, NULL, NULL, &timeout);
-		if (result <= 0) {
-			if (errno == EAGAIN) {
-				continue;
-			} else {
-				log->printf("DisplayOmapDrm::putImage(): Timeout on flip buffer!\n");
-				goto fail;
-			}
-		}
-		drmHandleEvent(_fd, &drmEventContext);
-		break;
-	}
+	drmEventContext.version = 2;
+	drmEventContext.page_flip_handler = pageFlipHandler;
+	drmHandleEvent(_fd, &drmEventContext);
 
 	return S_OK;
 
