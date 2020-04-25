@@ -21,6 +21,8 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <time.h>
+#include <sys/time.h>
 
 #include "basetypes.h"
 #include "avtypes.h"
@@ -38,6 +40,15 @@ extern "C" {
 
 namespace MediaPLayer {
 
+static double getTime() {
+	struct timeval t;
+
+	gettimeofday(&t, NULL);
+
+	return t.tv_sec * (double)1000000 + t.tv_usec;
+}
+
+
 int Player(int argc, char *argv[]) {
 	int option;
 	const char *filename;
@@ -49,7 +60,9 @@ int Player(int argc, char *argv[]) {
 	StreamVideoInfo info;
 	bool hwAccel = false;
 	StreamFrame inputFrame{};
-	DISPLAY_TYPE prefferedDisplay = DISPLAY_OMAPDRM_EGL;
+	DISPLAY_TYPE prefferedDisplay = DISPLAY_OMAPDRM;
+	double deltaFrameTime = 1000000 / 23.99;
+	double timeFrame;
 
 	if (CreateLogs() == S_FAIL)
 		goto end;
@@ -159,7 +172,12 @@ int Player(int argc, char *argv[]) {
 		goto end;
 	}
 
+	timeFrame = getTime();
+
 	for (;;) {
+		double startT = getTime();
+		double nextFlip = timeFrame + deltaFrameTime;
+
 		decoderVideo->getDemuxerBuffer(&inputFrame);
 		decoderAudio->getDemuxerBuffer(&inputFrame);
 		if (demuxer->readNextFrame(&inputFrame) != S_OK)
@@ -185,10 +203,27 @@ int Player(int argc, char *argv[]) {
 				break;
 			}
 
+			{
+				timeFrame = getTime();
+				long timeToSleep = nextFlip - timeFrame;
+				if (timeToSleep < 0)
+					timeToSleep = 0;
+				if (timeToSleep >= 1000000)
+					timeToSleep = 999999;
+				if (timeToSleep >= 1) {
+					//printf("sleeping %dus\n", timeToSleep);
+					usleep(timeToSleep);
+				}
+				timeFrame = nextFlip;
+			}
+
 			if (display->flip() == S_FAIL) {
 				log->printf("Failed flip display!\n");
 				break;
 			}
+
+			double endT = getTime();
+			//printf("delta time %dus\n", (long)(endT - startT));
 		}
 	}
 
