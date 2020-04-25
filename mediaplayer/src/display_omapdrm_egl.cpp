@@ -813,13 +813,12 @@ fail:
 	return S_FAIL;
 }
 
-static bool flipPending = false;
-
 void DisplayOmapDrmEgl::pageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data) {
-	flipPending = false;
 }
 
 STATUS DisplayOmapDrmEgl::flip() {
+	drmEventContext drmEvent{};
+	drmEventContext drmEventContext{};
 	gbm_bo *gbmBo;
 	DrmFb *drmFb;
 
@@ -838,32 +837,9 @@ STATUS DisplayOmapDrmEgl::flip() {
 
 	gbm_surface_release_buffer(_gbmSurface, gbmBo);
 
-	flipPending = true;
-
-	while (flipPending) {
-		drmEventContext drmEvent{};
-		drmEventContext drmEventContext{};
-		drmEventContext.version = DRM_EVENT_CONTEXT_VERSION;
-		drmEventContext.page_flip_handler = pageFlipHandler;
-		fd_set fds{};
-		FD_SET(_fd, &fds);
-		struct timeval timeout = {
-			.tv_sec = 3,
-			.tv_usec = 0,
-			};
-
-		int result = select(_fd + 1, &fds, NULL, NULL, &timeout);
-		if (result <= 0) {
-			if (errno == EAGAIN) {
-				continue;
-			} else {
-				log->printf("DisplayOmapDrmEgl::putImage(): Timeout on flip buffer!\n");
-				goto fail;
-			}
-		}
-		drmHandleEvent(_fd, &drmEventContext);
-		break;
-	}
+	drmEventContext.version = 2;
+	drmEventContext.page_flip_handler = pageFlipHandler;
+	drmHandleEvent(_fd, &drmEventContext);
 
 	return S_OK;
 
