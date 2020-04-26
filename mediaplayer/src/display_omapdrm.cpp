@@ -188,9 +188,11 @@ void DisplayOmapDrm::internalDeinit() {
 
 	if (_primaryFbId) {
 		drmModeRmFB(_fd, _primaryFbId);
+		_primaryFbId = 0;
 	}
 	if (_primaryFbBo) {
 		omap_bo_del(_primaryFbBo);
+		_primaryFbBo = nullptr;
 	}
 
 	if (_drmPlaneResources != nullptr)
