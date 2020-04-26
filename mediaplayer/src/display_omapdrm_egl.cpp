@@ -248,6 +248,13 @@ void DisplayOmapDrmEgl::internalDeinit() {
 		_oldCrtc = nullptr;
 	}
 
+	if (_primaryFbId) {
+		drmModeRmFB(_fd, _primaryFbId);
+	}
+	if (_primaryFbBo) {
+		omap_bo_del(_primaryFbBo);
+	}
+
 	if (_drmPlaneResources != nullptr)
 		drmModeFreePlaneResources(_drmPlaneResources);
 
