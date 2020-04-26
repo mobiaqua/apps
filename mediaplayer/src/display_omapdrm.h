@@ -53,13 +53,17 @@ private:
 
 	typedef struct {
 		struct omap_bo  *bo;
+		uint32_t        boHandle;
 		uint32_t        fbId;
 		void            *ptr;
 		U32             width, height;
 		U32             stride;
 		U32             size;
+		U32             srcX, srcY;
+		U32             srcWidth, srcHeight;
 		U32             dstX, dstY;
 		U32             dstWidth, dstHeight;
+		DisplayVideoBuffer *db;
 	} VideoBuffer;
 
 	int                         _fd;
@@ -70,10 +74,13 @@ private:
 	drmModeModeInfo             _modeInfo;
 	uint32_t                    _connectorId;
 	uint32_t                    _crtcId;
-	int                         _planeId;
+	int                         _osdPlaneId;
+	int                         _videoPlaneId;
 
+	struct omap_bo              *_primaryFbBo;
+	uint32_t                    _primaryFbId;
 	OSDBuffer                   _osdBuffers[NUM_OSD_FB]{};
-	VideoBuffer                 _videoBuffers[NUM_VIDEO_FB]{};
+	VideoBuffer                 *_videoBuffers[NUM_VIDEO_FB]{};
 
 	int                         _currentOSDBuffer;
 	int                         _currentVideoBuffer;
@@ -84,11 +91,11 @@ public:
 	DisplayOmapDrm();
 	~DisplayOmapDrm();
 
-	STATUS init();
+	STATUS init(bool hwAccelDecode);
 	STATUS deinit();
 	STATUS configure(FORMAT_VIDEO videoFmt, int videoFps, int videoWidth, int videoHeight);
-	STATUS putImage(VideoFrame *frame);
-	STATUS flip();
+	STATUS putImage(VideoFrame *frame, bool skip);
+	STATUS flip(bool skip);
 	STATUS getHandle(DisplayHandle *handle);
 	STATUS getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height);
 	STATUS releaseVideoBuffer(DisplayVideoBuffer *handle);
@@ -97,7 +104,8 @@ private:
 
 	STATUS internalInit();
 	void internalDeinit();
-	static void pageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data);
+	VideoBuffer *getVideoBuffer(FORMAT_VIDEO pixelfmt, int width, int height);
+	STATUS releaseVideoBuffer(VideoBuffer *buffer);
 };
 
 } // namespace

@@ -61,8 +61,9 @@ int Player(int argc, char *argv[]) {
 	bool hwAccel = false;
 	StreamFrame inputFrame{};
 	DISPLAY_TYPE prefferedDisplay = DISPLAY_OMAPDRM;
-	double deltaFrameTime = 1000000 / 23.99;
-	double timeFrame;
+	double deltaFrameTime;
+	double timeFrame = 0;
+	bool firstTimeFrame = true;;
 
 	if (CreateLogs() == S_FAIL)
 		goto end;
@@ -105,28 +106,7 @@ int Player(int argc, char *argv[]) {
 		goto end;
 	}
 
-	display = CreateDisplay(prefferedDisplay);
-	if (display == nullptr) {
-		log->printf("Failed get handle to OAMP DRM display!\n");
-		goto end;
-	}
-	if (display->init() == S_FAIL) {
-		log->printf("Failed init OMAP DRM display!\n");
-		delete display;
-		display = CreateDisplay(DISPLAY_FBDEV);
-		if (display == nullptr) {
-			log->printf("Failed get handle to FBDEV display!\n");
-			goto end;
-		}
-		if (display->init() == S_FAIL) {
-			log->printf("Failed init FBDEV display!\n");
-			goto end;
-		}
-	}
-	if (display->configure(info.pixelfmt, 25, info.width, info.height) == S_FAIL) {
-		log->printf("Failed configure display!\n");
-		goto end;
-	}
+	deltaFrameTime = 1000000.0 / info.fps;
 
 	decoderVideo = CreateDecoderVideo(DECODER_LIBDCE);
 	if (decoderVideo == nullptr) {
@@ -151,6 +131,29 @@ int Player(int argc, char *argv[]) {
 		}
 	}
 
+	display = CreateDisplay(prefferedDisplay);
+	if (display == nullptr) {
+		log->printf("Failed get handle to OAMP DRM display!\n");
+		goto end;
+	}
+	if (display->init(hwAccel) == S_FAIL) {
+		log->printf("Failed init OMAP DRM display!\n");
+		delete display;
+		display = CreateDisplay(DISPLAY_FBDEV);
+		if (display == nullptr) {
+			log->printf("Failed get handle to FBDEV display!\n");
+			goto end;
+		}
+		if (display->init(hwAccel) == S_FAIL) {
+			log->printf("Failed init FBDEV display!\n");
+			goto end;
+		}
+	}
+	if (display->configure(info.pixelfmt, 25, info.width, info.height) == S_FAIL) {
+		log->printf("Failed configure display!\n");
+		goto end;
+	}
+
 	if (decoderVideo->init(demuxer, display) == S_FAIL) {
 		log->printf("Failed get init video decoder!\n");
 		goto end;
@@ -172,8 +175,6 @@ int Player(int argc, char *argv[]) {
 		goto end;
 	}
 
-	timeFrame = getTime();
-
 	for (;;) {
 		double startT = getTime();
 		double nextFlip = timeFrame + deltaFrameTime;
@@ -193,33 +194,40 @@ int Player(int argc, char *argv[]) {
 
 		if (frameReady) {
 			VideoFrame outputFrame{};
+			long timeToSleep;
+
 			if (decoderVideo->getVideoStreamOutputFrame(demuxer, &outputFrame) != S_OK) {
 				log->printf("Failed get decoded frame!\n");
 				break;
 			}
 
-			if (display->putImage(&outputFrame) == S_FAIL) {
+			if (display->putImage(&outputFrame, false) == S_FAIL) {
 				log->printf("Failed configure display!\n");
 				break;
 			}
 
-			{
-				timeFrame = getTime();
-				long timeToSleep = nextFlip - timeFrame;
-				if (timeToSleep < 0)
-					timeToSleep = 0;
-				if (timeToSleep >= 1000000)
-					timeToSleep = 999999;
-				if (timeToSleep >= 1) {
-					//printf("sleeping %dus\n", timeToSleep);
-					usleep(timeToSleep);
-				}
-				timeFrame = nextFlip;
+			if (firstTimeFrame) {
+				timeToSleep = 0;
+			} else {
+				timeToSleep = nextFlip - getTime();
+			}
+			//printf("time to sleep %dus\n", (long)timeToSleep);
+			if (timeToSleep > 0) {
+				usleep(timeToSleep);
 			}
 
-			if (display->flip() == S_FAIL) {
+			double s1 = getTime();
+			if (display->flip(timeToSleep < 0) == S_FAIL) {
 				log->printf("Failed flip display!\n");
 				break;
+			}
+			//printf("flip %dus\n", (long)(getTime() - s1));
+
+			if (firstTimeFrame) {
+				timeFrame = getTime();
+				firstTimeFrame = false;
+			} else {
+				timeFrame = nextFlip;
 			}
 
 			double endT = getTime();

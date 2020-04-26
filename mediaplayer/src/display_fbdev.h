@@ -53,11 +53,11 @@ public:
 	DisplayFBDev();
 	~DisplayFBDev();
 
-	STATUS init();
+	STATUS init(bool hwAccelDecode);
 	STATUS deinit();
 	STATUS configure(FORMAT_VIDEO videoFmt, int videoFps, int videoWidth, int videoHeight);
-	STATUS putImage(VideoFrame *frame);
-	STATUS flip();
+	STATUS putImage(VideoFrame *frame, bool skip);
+	STATUS flip(bool skip);
 	STATUS getHandle(DisplayHandle *handle) { return S_FAIL; };
 	STATUS getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height)  { return S_FAIL; };
 	STATUS releaseVideoBuffer(DisplayVideoBuffer *handle)  { return S_FAIL; };

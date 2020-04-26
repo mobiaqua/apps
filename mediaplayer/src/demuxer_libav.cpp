@@ -220,6 +220,8 @@ STATUS DemuxerLibAV::selectVideoStream() {
 			_videoStreamInfo.timeBaseRate = static_cast<U32>(cc->time_base.den);
 			_videoStreamInfo.priv = cc;
 			_videoStreamInfo.codecTag = cc->codec_tag;
+			_videoStreamInfo.fps = av_q2d(stream->avg_frame_rate);
+
 
 			switch (cc->codec_id) {
 			case AV_CODEC_ID_MPEG1VIDEO:

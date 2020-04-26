@@ -55,6 +55,7 @@ private:
 		void           *mapPtr;
 		EGLImageKHR    image;
 		GLuint         glTexture;
+		DisplayVideoBuffer *db;
 	} RenderTexture;
 
 	int                         _fd;
@@ -69,6 +70,9 @@ private:
 	uint32_t                    _connectorId;
 	uint32_t                    _crtcId;
 	int                         _planeId;
+
+	struct omap_bo              *_primaryFbBo;
+	uint32_t                    _primaryFbId;
 
 	EGLDisplay 					_eglDisplay;
 	EGLSurface					_eglSurface;
@@ -90,11 +94,11 @@ public:
 	DisplayOmapDrmEgl();
 	~DisplayOmapDrmEgl();
 
-	STATUS init();
+	STATUS init(bool hwAccelDecode);
 	STATUS deinit();
 	STATUS configure(FORMAT_VIDEO videoFmt, int videoFps, int videoWidth, int videoHeight);
-	STATUS putImage(VideoFrame *frame);
-	STATUS flip();
+	STATUS putImage(VideoFrame *frame, bool skip);
+	STATUS flip(bool skip);
 	STATUS getHandle(DisplayHandle *handle);
 	STATUS getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height);
 	STATUS releaseVideoBuffer(DisplayVideoBuffer *handle);
@@ -105,10 +109,10 @@ private:
 	void internalDeinit();
 	static void drmFbDestroyCallback(gbm_bo *gbmBo, void *data);
 	DrmFb *getDrmFb(gbm_bo *gbmBo);
-	static void pageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data);
 	const char* eglGetErrorStr(EGLint error);
 	RenderTexture *getVideoBuffer(FORMAT_VIDEO pixelfmt, int width, int height);
 	STATUS releaseVideoBuffer(RenderTexture *texture);
+	static void pageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data);
 };
 
 } // namespace

@@ -226,7 +226,6 @@ STATUS DecoderVideoLibAV::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame
 	videoFrame->dy = 0;
 	videoFrame->dw = info.width;
 	videoFrame->dh = info.height;
-	videoFrame->hw = false;
 
 	return S_OK;
 }

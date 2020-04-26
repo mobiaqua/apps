@@ -45,8 +45,8 @@ DisplayFBDev::~DisplayFBDev() {
 	deinit();
 }
 
-STATUS DisplayFBDev::init() {
-	if (_initialized)
+STATUS DisplayFBDev::init(bool hwAccelDecode) {
+	if (_initialized || hwAccelDecode)
 		return S_FAIL;
 
 	if (internalInit() == S_FAIL)
@@ -160,7 +160,7 @@ STATUS DisplayFBDev::configure(FORMAT_VIDEO /*videoFmt*/, int /*videoFps*/,
 	return S_OK;
 }
 
-STATUS DisplayFBDev::putImage(VideoFrame *frame) {
+STATUS DisplayFBDev::putImage(VideoFrame *frame, bool skip) {
 	U32 dstX = (_fbWidth - frame->width) / 2;
 	U32 dstY = (_fbHeight - frame->height) / 2;
 
@@ -168,6 +168,9 @@ STATUS DisplayFBDev::putImage(VideoFrame *frame) {
 		log->printf("DisplayFBDev::putImage(): Bad arguments!\n");
 		goto fail;
 	}
+
+	if (skip)
+		return S_OK;
 
 	if (frame->pixelfmt == FMT_YUV420P) {
 		uint8_t *srcPtr[4] = { frame->data[0], frame->data[1], frame->data[2], NULL };
@@ -197,7 +200,7 @@ fail:
 	return S_FAIL;
 }
 
-STATUS DisplayFBDev::flip() {
+STATUS DisplayFBDev::flip(bool skip) {
 
 	// nothing
 

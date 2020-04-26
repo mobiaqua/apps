@@ -48,6 +48,7 @@ DisplayOmapDrmEgl::DisplayOmapDrmEgl() :
 		_fd(-1), _omapDevice(nullptr),
 		_drmResources(nullptr), _drmPlaneResources(nullptr),
 		_connectorId(-1), _oldCrtc(nullptr), _crtcId(-1), _planeId(-1),
+		_primaryFbBo(nullptr), _primaryFbId(0),
 		_gbmDevice(nullptr), _gbmSurface(nullptr),
 		_eglDisplay(nullptr), _eglSurface(nullptr), _eglConfig(nullptr), _eglContext(nullptr),
 		eglCreateImageKHR(nullptr), eglDestroyImageKHR(nullptr), glEGLImageTargetTexture2DOES(nullptr),
@@ -59,9 +60,11 @@ DisplayOmapDrmEgl::~DisplayOmapDrmEgl() {
 	deinit();
 }
 
-STATUS DisplayOmapDrmEgl::init() {
+STATUS DisplayOmapDrmEgl::init(bool hwAccelDecode) {
 	if (_initialized)
 		return S_FAIL;
+
+	_hwAccelDecode = hwAccelDecode;
 
 	if (internalInit() == S_FAIL)
 		return S_FAIL;
@@ -301,9 +304,9 @@ STATUS DisplayOmapDrmEgl::configure(FORMAT_VIDEO videoFmt, int videoFps, int vid
 
 	int modeId = -1;
 	_crtcId = -1;
-	gbm_bo *gbmBo;
-	DrmFb *drmFb;
 	const char *extensions;
+	uint32_t handles[4] = { 0 }, pitches[4] = { 0 }, offsets[4] = { 0 };
+	int ret;
 
 	switch (videoFmt) {
 		case FMT_YUV420P:
@@ -403,8 +406,6 @@ STATUS DisplayOmapDrmEgl::configure(FORMAT_VIDEO videoFmt, int videoFps, int vid
 		drmModeFreeProperty(prop);
 	}
 	drmModeFreeObjectProperties(props);
-
-	_oldCrtc = drmModeGetCrtc(_fd, _crtcId);
 
 	_fbWidth = _modeInfo.hdisplay;
 	_fbHeight = _modeInfo.vdisplay;
@@ -549,19 +550,31 @@ STATUS DisplayOmapDrmEgl::configure(FORMAT_VIDEO videoFmt, int videoFps, int vid
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	gbmBo = gbm_surface_lock_front_buffer(_gbmSurface);
-	if (!eglSwapBuffers(_eglDisplay, _eglSurface)) {
-		log->printf("DisplayOmapDrmEgl::configure(): failed to swap buffers, error: %s!\n", eglGetErrorStr(eglGetError()));
-		goto fail;
-	}
 
-	drmFb = getDrmFb(gbmBo);
-	if (drmModeSetCrtc(_fd, _crtcId, drmFb->fbId, 0, 0, &_connectorId, 1, &_modeInfo) < 0) {
-		log->printf("DisplayOmapDrmEgl::configure(): failed set crtc: %s\n", strerror(errno));
-		gbm_surface_release_buffer(_gbmSurface, gbmBo);
-		goto fail;
+	_primaryFbBo = omap_bo_new(_omapDevice, _modeInfo.hdisplay * _modeInfo.vdisplay * 4, OMAP_BO_WC | OMAP_BO_SCANOUT);
+	if (!_primaryFbBo) {
+		log->printf("DisplayOmapDrm::configure(): Failed allocate buffer!\n");
+		return S_FAIL;
 	}
-	gbm_surface_release_buffer(_gbmSurface, gbmBo);
+	handles[0] = omap_bo_handle(_primaryFbBo);
+	pitches[0] = _modeInfo.hdisplay * 4;
+	ret = drmModeAddFB2(_fd, _modeInfo.hdisplay, _modeInfo.vdisplay,
+	                	DRM_FORMAT_ARGB8888,
+						handles, pitches, offsets, &_primaryFbId, 0);
+	if (ret < 0) {
+		log->printf("DisplayOmapDrm::configure(): failed add video buffer: %s\n", strerror(errno));
+		return S_FAIL;
+	}
+	omap_bo_cpu_prep(_primaryFbBo, OMAP_GEM_WRITE);
+	memset(omap_bo_map(_primaryFbBo), 0, omap_bo_size(_primaryFbBo));
+	omap_bo_cpu_fini(_primaryFbBo, OMAP_GEM_WRITE);
+
+	_oldCrtc = drmModeGetCrtc(_fd, _crtcId);
+	ret = drmModeSetCrtc(_fd, _crtcId, _primaryFbId, 0, 0, &_connectorId, 1, &_modeInfo);
+	if (ret < 0) {
+		log->printf("DisplayOmapDrm::configure(): failed set crtc: %s\n", strerror(errno));
+		return S_FAIL;
+	}
 
 	return S_OK;
 
@@ -646,7 +659,7 @@ DisplayOmapDrmEgl::DrmFb *DisplayOmapDrmEgl::getDrmFb(gbm_bo *gbmBo) {
 	return drmFb;
 }
 
-STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
+STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame, bool skip) {
 	if (!_initialized)
 		return S_FAIL;
 
@@ -674,7 +687,7 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 	} else {
 		x = (float)(frame->dw) / _fbWidth;
 		y = (float)(frame->dh) / _fbHeight;
-		if (x > y) {
+		if (x >= y) {
 			y /= x;
 			x = 1;
 		} else {
@@ -694,9 +707,10 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 	position[7] =  y;
 
 	cropLeft = (float)(frame->dx) / frame->width;
-	cropRight = (float)(frame->dw) / frame->width;
+	cropRight = (float)(frame->dw + frame->dx) / frame->width;
 	cropTop = (float)(frame->dy) / frame->height;
-	cropBottom = (float)(frame->dh) / frame->height;
+	cropBottom = (float)(frame->dh + frame->dy) / frame->height;
+
 	coords[0] = coords[4] = cropLeft;
 	coords[2] = coords[6] = cropRight;
 	coords[5] = coords[7] = cropTop;
@@ -708,7 +722,7 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, coords);
 	glEnableVertexAttribArray(1);
 
-	if (frame->hw) {
+	if (_hwAccelDecode) {
 		DisplayVideoBuffer *db = (DisplayVideoBuffer *)(frame->data[0]);
 		renderTexture = (RenderTexture *)db->priv;
 	} else if (!_renderTexture) {
@@ -720,7 +734,7 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame) {
 		renderTexture = _renderTexture;
 	}
 
-	if (!frame->hw) {
+	if (!_hwAccelDecode) {
 		uint8_t *srcPtr[4] = {};
 		uint8_t *dstPtr[4] = {};
 		int srcStride[4] = {};
@@ -813,33 +827,31 @@ fail:
 	return S_FAIL;
 }
 
-void DisplayOmapDrmEgl::pageFlipHandler(int fd, unsigned int frame, unsigned int sec, unsigned int usec, void *data) {
-}
-
-STATUS DisplayOmapDrmEgl::flip() {
-	drmEventContext drmEvent{};
-	drmEventContext drmEventContext{};
+STATUS DisplayOmapDrmEgl::flip(bool skip) {
 	gbm_bo *gbmBo;
 	DrmFb *drmFb;
 
 	if (!_initialized)
 		return S_FAIL;
 
-	gbmBo = gbm_surface_lock_front_buffer(_gbmSurface);
+	if (skip)
+		return S_OK;
 
 	eglSwapBuffers(_eglDisplay, _eglSurface);
 
+	gbmBo = gbm_surface_lock_front_buffer(_gbmSurface);
 	drmFb = getDrmFb(gbmBo);
-	if (drmModePageFlip(_fd, _crtcId, drmFb->fbId, DRM_MODE_PAGE_FLIP_EVENT, this)) {
-		log->printf("DisplayOmapDrmEgl::flip(): Can not flip buffer! %s\n", strerror(errno));
+
+	if (drmModeSetPlane(_fd, _planeId, _crtcId,
+				drmFb->fbId, 0,
+				0, 0, _modeInfo.hdisplay, _modeInfo.vdisplay,
+				0, 0, _modeInfo.hdisplay << 16, _modeInfo.vdisplay << 16
+				)) {
+		log->printf("DisplayOmapDrmEgl::flip(): failed set plane: %s\n", strerror(errno));
 		goto fail;
 	}
 
 	gbm_surface_release_buffer(_gbmSurface, gbmBo);
-
-	drmEventContext.version = 2;
-	drmEventContext.page_flip_handler = pageFlipHandler;
-	drmHandleEvent(_fd, &drmEventContext);
 
 	return S_OK;
 
@@ -866,7 +878,10 @@ DisplayOmapDrmEgl::RenderTexture *DisplayOmapDrmEgl::getVideoBuffer(FORMAT_VIDEO
 		return nullptr;
 	}
 
-	return (DisplayOmapDrmEgl::RenderTexture *)buffer.priv;
+	RenderTexture *renderTexture = (RenderTexture *)buffer.priv;
+	renderTexture->db = nullptr;
+
+	return renderTexture;
 }
 
 STATUS DisplayOmapDrmEgl::getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height) {
@@ -889,6 +904,7 @@ STATUS DisplayOmapDrmEgl::getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDE
 		return S_FAIL;
 	}
 
+	handle->locked = false;
 	handle->bo = renderTexture->bo = omap_bo_new(_omapDevice, fbSize, OMAP_BO_WC);
 	handle->boHandle = omap_bo_handle(handle->bo);
 	renderTexture->mapPtr = omap_bo_map(handle->bo);
@@ -923,6 +939,7 @@ STATUS DisplayOmapDrmEgl::getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDE
 		goto fail;
 	}
 
+	renderTexture->db = handle;
 	handle->priv = renderTexture;
 
 	return S_OK;

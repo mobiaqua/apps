@@ -554,8 +554,10 @@ STATUS DecoderVideoLibDCE::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFram
 
 	XDM_Rect *r = &_codecOutputArgs->displayBufs.bufDesc[0].activeFrameRegion;
 
+	FrameBuffer *fb = (FrameBuffer *)_codecOutputArgs->outputID[foundIndex];
+
 	videoFrame->pixelfmt = FMT_NV12;
-	videoFrame->data[0] = (U8 *)_codecOutputArgs->outputID[foundIndex];
+	videoFrame->data[0] = (U8 *)&fb->buffer;
 	videoFrame->data[1] = nullptr;
 	videoFrame->data[2] = nullptr;
 	videoFrame->data[3] = nullptr;
@@ -569,7 +571,6 @@ STATUS DecoderVideoLibDCE::getVideoStreamOutputFrame(Demuxer *demuxer, VideoFram
 	videoFrame->dy = r->topLeft.y;
 	videoFrame->dw = r->bottomRight.x - r->topLeft.x;
 	videoFrame->dh = r->bottomRight.y - r->topLeft.y;
-	videoFrame->hw = true;
 
 	if (_codecId == CODEC_ID_MPEG2VIDEO && _frameWidth == 720 && (_frameHeight == 576 || _frameHeight == 480)) {
 		videoFrame->anistropicDVD = true;
@@ -615,8 +616,10 @@ DecoderVideoLibDCE::FrameBuffer *DecoderVideoLibDCE::getBuffer() {
 
 	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
 		if (_frameBuffers[i].buffer.priv && !_frameBuffers[i].locked) {
-		    _frameBuffers[i].locked = true;
-			return &_frameBuffers[i];
+			if (!_frameBuffers[i].buffer.locked) {
+				_frameBuffers[i].locked = true;
+				return &_frameBuffers[i];
+			}
 		}
 	}
 
