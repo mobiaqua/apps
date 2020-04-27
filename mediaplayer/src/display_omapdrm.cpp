@@ -646,7 +646,6 @@ STATUS DisplayOmapDrm::getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORMAT_
 
 	uint32_t handles[4] = { 0 }, pitches[4] = { 0 }, offsets[4] = { 0 };
 	uint32_t fbSize;
-	int ret;
 
 	VideoBuffer *videoBuffer = new VideoBuffer;
 	memset(videoBuffer, 0, sizeof(VideoBuffer));
@@ -663,9 +662,8 @@ STATUS DisplayOmapDrm::getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORMAT_
 	handles[1] = handles[0];
 	pitches[1] = pitches[0];
 	offsets[1] = width * height;
-	ret = drmModeAddFB2(_fd, width, height,
-			DRM_FORMAT_NV12, handles, pitches, offsets, &videoBuffer->fbId, 0);
-	if (ret < 0) {
+	if (drmModeAddFB2(_fd, width, height,
+			DRM_FORMAT_NV12, handles, pitches, offsets, &videoBuffer->fbId, 0) < 0) {
 		log->printf("DisplayOmapDrm::configure(): failed add buffer: %s\n", strerror(errno));
 		return S_FAIL;
 	}
