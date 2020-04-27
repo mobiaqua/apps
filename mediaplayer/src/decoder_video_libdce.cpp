@@ -338,7 +338,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 
 	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
 		_frameBuffers[i] = {};
-		if (_display->getVideoBuffer(&_frameBuffers[i].buffer, FMT_NV12, _frameWidth, _frameHeight) != S_OK) {
+		if (_display->getDisplayVideoBuffer(&_frameBuffers[i].buffer, FMT_NV12, _frameWidth, _frameHeight) != S_OK) {
 			log->printf("DecoderVideoLibDCE::getBuffer(): Failed create output buffer\n");
 			goto fail;
 	    }
@@ -353,7 +353,7 @@ fail:
 
 	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
 		if (_frameBuffers[i].buffer.priv) {
-			_display->releaseVideoBuffer(&_frameBuffers[i].buffer);
+			_display->releaseDisplayVideoBuffer(&_frameBuffers[i].buffer);
 			_frameBuffers[i] = {};
 		}
 	}
@@ -415,7 +415,7 @@ STATUS DecoderVideoLibDCE::deinit() {
 
 	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
 		if (_frameBuffers[i].buffer.priv) {
-			_display->releaseVideoBuffer(&_frameBuffers[i].buffer);
+			_display->releaseDisplayVideoBuffer(&_frameBuffers[i].buffer);
 			_frameBuffers[i] = {};
 		}
 	}

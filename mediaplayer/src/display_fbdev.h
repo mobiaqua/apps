@@ -59,8 +59,8 @@ public:
 	STATUS putImage(VideoFrame *frame, bool skip);
 	STATUS flip(bool skip);
 	STATUS getHandle(DisplayHandle *handle) { return S_FAIL; };
-	STATUS getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height)  { return S_FAIL; };
-	STATUS releaseVideoBuffer(DisplayVideoBuffer *handle)  { return S_FAIL; };
+	STATUS getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height)  { return S_FAIL; };
+	STATUS releaseDisplayVideoBuffer(DisplayVideoBuffer *handle)  { return S_FAIL; };
 
 private:
 

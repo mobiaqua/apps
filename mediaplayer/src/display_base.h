@@ -58,8 +58,8 @@ public:
 	virtual STATUS putImage(VideoFrame *frame, bool skip) = 0;
 	virtual STATUS flip(bool skip) = 0;
 	virtual STATUS getHandle(DisplayHandle *handle) = 0;
-	virtual STATUS getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height) = 0;
-	virtual STATUS releaseVideoBuffer(DisplayVideoBuffer *handle) = 0;
+	virtual STATUS getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height) = 0;
+	virtual STATUS releaseDisplayVideoBuffer(DisplayVideoBuffer *handle) = 0;
 };
 
 Display *CreateDisplay(DISPLAY_TYPE displayType);

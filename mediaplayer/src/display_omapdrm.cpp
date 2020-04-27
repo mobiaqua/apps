@@ -289,6 +289,7 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 		log->printf("DisplayOmapDrm::configure(): Failed to find plane!\n");
 		return S_FAIL;
 	}
+	_videoPlaneId = -1;
 	for (int i = 0; i < _drmPlaneResources->count_planes; i++) {
 		drmModePlane *plane = drmModeGetPlane(_fd, _drmPlaneResources->planes[i]);
 		if (plane == nullptr)
@@ -367,7 +368,6 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 	omap_bo_cpu_fini(_primaryFbBo, OMAP_GEM_WRITE);
 
 	_oldCrtc = drmModeGetCrtc(_fd, _crtcId);
-
 	ret = drmModeSetCrtc(_fd, _crtcId, _primaryFbId, 0, 0, &_connectorId, 1, &_modeInfo);
 	if (ret < 0) {
 		log->printf("DisplayOmapDrm::configure(): failed set crtc: %s\n", strerror(errno));
@@ -630,7 +630,7 @@ STATUS DisplayOmapDrm::getHandle(DisplayHandle *handle) {
 DisplayOmapDrm::VideoBuffer *DisplayOmapDrm::getVideoBuffer(FORMAT_VIDEO pixelfmt, int width, int height) {
 	DisplayVideoBuffer buffer;
 
-	if (getVideoBuffer(&buffer, pixelfmt, width, height) != S_OK) {
+	if (getDisplayVideoBuffer(&buffer, pixelfmt, width, height) != S_OK) {
 		return nullptr;
 	}
 
@@ -640,7 +640,7 @@ DisplayOmapDrm::VideoBuffer *DisplayOmapDrm::getVideoBuffer(FORMAT_VIDEO pixelfm
 	return videoBuffer;
 }
 
-STATUS DisplayOmapDrm::getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height) {
+STATUS DisplayOmapDrm::getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height) {
 	if (!_initialized || handle == nullptr)
 		return S_FAIL;
 
@@ -697,7 +697,7 @@ fail:
 	return S_FAIL;
 };
 
-STATUS DisplayOmapDrm::releaseVideoBuffer(DisplayVideoBuffer *handle) {
+STATUS DisplayOmapDrm::releaseDisplayVideoBuffer(DisplayVideoBuffer *handle) {
 	if (!_initialized || handle == nullptr)
 		return S_FAIL;
 

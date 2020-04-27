@@ -883,7 +883,7 @@ STATUS DisplayOmapDrmEgl::getHandle(DisplayHandle *handle) {
 DisplayOmapDrmEgl::RenderTexture *DisplayOmapDrmEgl::getVideoBuffer(FORMAT_VIDEO pixelfmt, int width, int height) {
 	DisplayVideoBuffer buffer;
 
-	if (getVideoBuffer(&buffer, pixelfmt, width, height) != S_OK) {
+	if (getDisplayVideoBuffer(&buffer, pixelfmt, width, height) != S_OK) {
 		return nullptr;
 	}
 
@@ -893,7 +893,7 @@ DisplayOmapDrmEgl::RenderTexture *DisplayOmapDrmEgl::getVideoBuffer(FORMAT_VIDEO
 	return renderTexture;
 }
 
-STATUS DisplayOmapDrmEgl::getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height) {
+STATUS DisplayOmapDrmEgl::getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height) {
 	if (!_initialized || handle == nullptr)
 		return S_FAIL;
 
@@ -961,7 +961,7 @@ fail:
 	return S_FAIL;
 };
 
-STATUS DisplayOmapDrmEgl::releaseVideoBuffer(DisplayVideoBuffer *handle) {
+STATUS DisplayOmapDrmEgl::releaseDisplayVideoBuffer(DisplayVideoBuffer *handle) {
 	if (!_initialized || handle == nullptr)
 		return S_FAIL;
 

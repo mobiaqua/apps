@@ -97,8 +97,8 @@ public:
 	STATUS putImage(VideoFrame *frame, bool skip);
 	STATUS flip(bool skip);
 	STATUS getHandle(DisplayHandle *handle);
-	STATUS getVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height);
-	STATUS releaseVideoBuffer(DisplayVideoBuffer *handle);
+	STATUS getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORMAT_VIDEO pixelfmt, int width, int height);
+	STATUS releaseDisplayVideoBuffer(DisplayVideoBuffer *handle);
 
 private:
 
