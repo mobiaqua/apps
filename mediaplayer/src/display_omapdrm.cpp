@@ -654,7 +654,7 @@ STATUS DisplayOmapDrm::getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORMAT_
 	handle->locked = 0;
 	videoBuffer->bo = handle->bo = omap_bo_new(_omapDevice, fbSize, OMAP_BO_WC | OMAP_BO_SCANOUT);
 	if (!videoBuffer->bo) {
-		log->printf("DisplayOmapDrm::getVideoBuffer(): Failed allocate primary buffer!\n");
+		log->printf("DisplayOmapDrm::getVideoBuffer(): Failed allocate video buffer!\n");
 		return S_FAIL;
 	}
 	handles[0] = videoBuffer->boHandle = handle->boHandle = omap_bo_handle(handle->bo);
@@ -664,7 +664,7 @@ STATUS DisplayOmapDrm::getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORMAT_
 	offsets[1] = width * height;
 	if (drmModeAddFB2(_fd, width, height,
 			DRM_FORMAT_NV12, handles, pitches, offsets, &videoBuffer->fbId, 0) < 0) {
-		log->printf("DisplayOmapDrm::getVideoBuffer(): failed add buffer: %s\n", strerror(errno));
+		log->printf("DisplayOmapDrm::getVideoBuffer(): failed add video buffer: %s\n", strerror(errno));
 		return S_FAIL;
 	}
 	videoBuffer->srcX = 0;
