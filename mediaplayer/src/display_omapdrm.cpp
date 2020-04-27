@@ -240,7 +240,6 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 	}
 
 	if (modeId == -1) {
-		modeId = 0;
 		U64 hightestArea = 0;
 		for (int j = 0; j < connector->count_modes; j++) {
 			auto mode = &connector->modes[j];
@@ -253,8 +252,6 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 		}
 	}
 
-	_modeInfo = connector->modes[modeId];
-
 	for (int i = 0; i < connector->count_encoders; i++) {
 		auto encoder = drmModeGetEncoder(_fd, connector->encoders[i]);
 		if (encoder->encoder_id == connector->encoder_id) {
@@ -264,12 +261,16 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 		}
 		drmModeFreeEncoder(encoder);
 	}
-	drmModeFreeConnector(connector);
 
 	if (modeId == -1 || _crtcId == -1) {
 		log->printf("DisplayOmapDrm::configure(): Failed to find suitable display output!\n");
+		drmModeFreeConnector(connector);
 		return S_FAIL;
 	}
+
+	_modeInfo = connector->modes[modeId];
+
+	drmModeFreeConnector(connector);
 
 	_drmPlaneResources = drmModeGetPlaneResources(_fd);
 
