@@ -531,11 +531,6 @@ STATUS DisplayOmapDrm::putImage(VideoFrame *frame, bool skip) {
 		}
 	}
 
-	_videoBuffers[_currentVideoBuffer]->srcX = frame->dx;
-	_videoBuffers[_currentVideoBuffer]->srcY = frame->dy;
-	_videoBuffers[_currentVideoBuffer]->srcWidth = frame->dw;
-	_videoBuffers[_currentVideoBuffer]->srcHeight = frame->dh;
-
 	float x, y, w, h;
 	if (frame->anistropicDVD) {
 		x = 0;
