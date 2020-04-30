@@ -273,6 +273,10 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 	drmModeFreeConnector(connector);
 
 	_drmPlaneResources = drmModeGetPlaneResources(_fd);
+	if (!_drmPlaneResources) {
+		log->printf("DisplayOmapDrm::configure(): Failed to plane resources!\n");
+		return S_FAIL;
+	}
 
 	_osdPlaneId = -1;
 	for (int i = 0; i < _drmPlaneResources->count_planes; i++) {
