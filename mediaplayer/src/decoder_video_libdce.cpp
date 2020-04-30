@@ -254,7 +254,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
         ((IH264VDEC_Params *)_codecParams)->pConstantMemory = 0;
         ((IH264VDEC_Params *)_codecParams)->bitStreamFormat = IH264VDEC_BYTE_STREAM_FORMAT;
         ((IH264VDEC_Params *)_codecParams)->errConcealmentMode = IH264VDEC_NO_CONCEALMENT; // IH264VDEC_APPLY_CONCEALMENT
-        ((IH264VDEC_Params *)_codecParams)->temporalDirModePred = IH264VDEC_DISABLE_TEMPORALDIRECT;
+        ((IH264VDEC_Params *)_codecParams)->temporalDirModePred = IH264VDEC_ENABLE_TEMPORALDIRECT;
         ((IH264VDEC_Params *)_codecParams)->svcExtensionFlag = IH264VDEC_DISABLE_SVCEXTENSION;
         ((IH264VDEC_Params *)_codecParams)->svcTargetLayerDID = IH264VDEC_TARGET_DID_DEFAULT;
         ((IH264VDEC_Params *)_codecParams)->svcTargetLayerTID = IH264VDEC_TARGET_TID_DEFAULT;
