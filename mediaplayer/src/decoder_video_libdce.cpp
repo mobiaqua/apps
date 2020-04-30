@@ -276,13 +276,13 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
     	_frameWidth = ALIGN2(_frameWidth + 32, 7);
     	_frameHeight = _frameHeight + 32;
     	_codecParams->size = sizeof(IMPEG4VDEC_Params);
-        ((IMPEG4VDEC_Params *)_codecParams)->outloopDeBlocking = IMPEG4VDEC_DEBLOCK_DISABLE; // IMPEG4VDEC_ENHANCED_DEBLOCK_ENABLE
-        ((IMPEG4VDEC_Params *)_codecParams)->errorConcealmentEnable = IMPEG4VDEC_EC_DISABLE; // IMPEG4VDEC_EC_ENABLE
+        ((IMPEG4VDEC_Params *)_codecParams)->outloopDeBlocking = IMPEG4VDEC_ENHANCED_DEBLOCK_ENABLE;
+        ((IMPEG4VDEC_Params *)_codecParams)->errorConcealmentEnable = IMPEG4VDEC_EC_ENABLE;
         ((IMPEG4VDEC_Params *)_codecParams)->sorensonSparkStream = FALSE;
         ((IMPEG4VDEC_Params *)_codecParams)->debugTraceLevel = IMPEG4VDEC_DEBUGTRACE_LEVEL0; // 0 - 2
         ((IMPEG4VDEC_Params *)_codecParams)->lastNFramesToLog = IMPEG4VDEC_MINNUM_OF_FRAME_LOGS;
         ((IMPEG4VDEC_Params *)_codecParams)->paddingMode = IMPEG4VDEC_MPEG4_MODE_PADDING;//IMPEG4VDEC_DIVX_MODE_PADDING;
-        ((IMPEG4VDEC_Params *)_codecParams)->enhancedDeBlockingQp = IMPEG4VDEC_DEBLOCK_QP_MAX; // 1 - 31
+        ((IMPEG4VDEC_Params *)_codecParams)->enhancedDeBlockingQp = 15; // 1 - 31
         ((IMPEG4VDEC_Params *)_codecParams)->decodeOnlyIntraFrames = IMPEG4VDEC_DECODE_ONLY_I_FRAMES_DISABLE;
         _codecHandle = VIDDEC3_create(_codecEngine, (String)"ivahd_mpeg4dec", _codecParams);
 		log->printf("DecoderVideoLibDCE::init(): using ivahd_mpeg4dec\n");
@@ -291,7 +291,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
     case CODEC_ID_MPEG2VIDEO:
     	_codecParams->size = sizeof(IMPEG2VDEC_Params);
         ((IMPEG2VDEC_Params *)_codecParams)->ErrorConcealmentON = IMPEG2VDEC_EC_DISABLE; // IMPEG2VDEC_EC_ENABLE
-        ((IMPEG2VDEC_Params *)_codecParams)->outloopDeBlocking =  IMPEG2VDEC_DEBLOCK_DISABLE; // IMPEG2VDEC_DEBLOCK_ENABLE
+        ((IMPEG2VDEC_Params *)_codecParams)->outloopDeBlocking =  IMPEG2VDEC_DEBLOCK_ENABLE;
         ((IMPEG2VDEC_Params *)_codecParams)->debugTraceLevel = 0; // 0 - 4
         ((IMPEG2VDEC_Params *)_codecParams)->lastNFramesToLog = 0;
     	_codecHandle = VIDDEC3_create(_codecEngine, (String)"ivahd_mpeg2vdec", _codecParams);
@@ -302,7 +302,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
     	_frameWidth = ALIGN2(_frameWidth + (32 * 2), 7);
     	_frameHeight = (ALIGN2(_frameHeight / 2, 4) * 2) + 2 * 40;
 		_codecParams->size = sizeof(IVC1VDEC_Params);
-		((IVC1VDEC_Params *)_codecParams)->errorConcealmentON = FALSE;
+		((IVC1VDEC_Params *)_codecParams)->errorConcealmentON = TRUE;
 		((IVC1VDEC_Params *)_codecParams)->frameLayerDataPresentFlag = FALSE;
         ((IVC1VDEC_Params *)_codecParams)->debugTraceLevel = 0; // 0 - 4
         ((IVC1VDEC_Params *)_codecParams)->lastNFramesToLog = 0;
