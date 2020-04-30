@@ -329,6 +329,9 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 		log->printf("DecoderVideoLibDCE::init(): Failed allocation with dce_alloc()\n");
 		goto fail;
     }
+    if (_codecId == CODEC_ID_H264) {
+    	((IH264VDEC_DynamicParams *)_codecDynParams)->deblockFilterMode = IH264VDEC_DEBLOCK_DEFAULT;
+    }
 
     _codecDynParams->size = sizeof(VIDDEC3_DynamicParams);
     _codecDynParams->decodeHeader = XDM_DECODE_AU;
