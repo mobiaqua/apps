@@ -221,6 +221,7 @@ STATUS DemuxerLibAV::selectVideoStream() {
 			_videoStreamInfo.priv = cc;
 			_videoStreamInfo.codecTag = cc->codec_tag;
 			_videoStreamInfo.fps = av_q2d(stream->avg_frame_rate);
+			_videoStreamInfo.profileLevel = cc->level;
 
 
 			switch (cc->codec_id) {

@@ -61,6 +61,7 @@ typedef struct {
 	U32          height;
 	U32          timeBaseScale;
 	U32          timeBaseRate;
+	U32          profileLevel;
 	float        fps;
 	void        *priv; // used for non API purposes
 } StreamVideoInfo;
