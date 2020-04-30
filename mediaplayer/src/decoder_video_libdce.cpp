@@ -24,6 +24,7 @@
 #include "decoder_video_libdce.h"
 #include "display_base.h"
 #include <string.h>
+#include <stdlib.h>
 
 namespace MediaPLayer {
 
@@ -32,6 +33,7 @@ DecoderVideoLibDCE::DecoderVideoLibDCE() :
 		_codecStatus(0), _codecInputBufs(nullptr), _codecOutputBufs(nullptr),
 		_codecInputArgs(nullptr), _codecOutputArgs(nullptr), _omapDev(nullptr),
 		_frameWidth(0), _frameHeight(0),_inputBufPtr(nullptr), _inputBufSize(0), _inputBufBo(nullptr),
+		_numFrameBuffers(0), _frameBuffers(nullptr),
 		_codecId(CODEC_ID_NONE) {
 	_bpp = 2;
 }
@@ -110,6 +112,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 	Engine_Error engineError;
 	DisplayHandle displayHandle;
 	Int32 codecError;
+	int dpbSizeInFrames = 0;
 
 	_display = display;
 	if (display->getHandle(&displayHandle) != S_OK) {
@@ -120,9 +123,10 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 	StreamVideoInfo info;
 	if (demuxer->getVideoStreamInfo(&info) != S_OK) {
 		log->printf("DecoderVideoLibDCE::init(): demuxer->getVideoStreamInfo() failed\n");
-		return false;
+        goto fail;
 	}
 
+	_numFrameBuffers = 3;
 	switch (info.codecId) {
 	case CODEC_ID_MPEG1VIDEO:
 		_codecId = CODEC_ID_MPEG1VIDEO;
@@ -135,17 +139,52 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 		break;
 	case CODEC_ID_WMV3:
 		_codecId = CODEC_ID_WMV3;
+		_numFrameBuffers = 4;
 		break;
 	case CODEC_ID_VC1:
 		_codecId = CODEC_ID_VC1;
+		_numFrameBuffers = 4;
 		break;
 	case CODEC_ID_H264:
 		_codecId = CODEC_ID_H264;
+		int maxDpb;
+		switch (info.profileLevel) {
+		case 30:
+			maxDpb = 8100;
+			break;
+		case 31:
+			maxDpb = 18100;
+			break;
+		case 32:
+			maxDpb = 20480;
+			break;
+		case 40:
+		case 41:
+			maxDpb = 32768;
+			break;
+		case 42:
+			maxDpb = 34816;
+			break;
+		case 50:
+			maxDpb = 110400;
+			break;
+		case 51:
+		case 52:
+			maxDpb = 184320;
+			break;
+		default:
+			log->printf("DecoderVideoLibDCE::init(): not supported profile level: %d\n", info.profileLevel);
+	        goto fail;
+		}
+		dpbSizeInFrames = MIN(16, maxDpb / ((info.width / 16) * (info.height / 16)));
+		_numFrameBuffers = IVIDEO2_MAX_IO_BUFFERS;
 		break;
 	default:
 		log->printf("DecoderVideoLibDCE::init(): not supported codec!\n");
-		return S_FAIL;
+        goto fail;
 	}
+
+	_numFrameBuffers += 2; // for display buffering
 
 	_frameWidth  = ALIGN2(info.width, 4);
 	_frameHeight = ALIGN2(info.height, 4);
@@ -211,7 +250,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
     	_frameWidth = ALIGN2(_frameWidth + (32 * 2), 7);
     	_frameHeight = _frameHeight + 4 * 24;
     	_codecParams->size = sizeof(IH264VDEC_Params);
-        ((IH264VDEC_Params *)_codecParams)->dpbSizeInFrames = IH264VDEC_DPB_NUMFRAMES_AUTO;
+        ((IH264VDEC_Params *)_codecParams)->dpbSizeInFrames = dpbSizeInFrames;//IH264VDEC_DPB_NUMFRAMES_AUTO;
         ((IH264VDEC_Params *)_codecParams)->pConstantMemory = 0;
         ((IH264VDEC_Params *)_codecParams)->bitStreamFormat = IH264VDEC_BYTE_STREAM_FORMAT;
         ((IH264VDEC_Params *)_codecParams)->errConcealmentMode = IH264VDEC_NO_CONCEALMENT; // IH264VDEC_APPLY_CONCEALMENT
@@ -336,14 +375,15 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
     _codecOutputBufs->descs[1].buf = (XDAS_Int8 *)(_frameWidth * _frameHeight);
     _codecOutputBufs->descs[1].bufSize.bytes = _frameWidth * (_frameHeight / 2);
 
-	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
-		_frameBuffers[i] = {};
-		if (_display->getDisplayVideoBuffer(&_frameBuffers[i].buffer, FMT_NV12, _frameWidth, _frameHeight) != S_OK) {
+    _frameBuffers = (FrameBuffer **)calloc(_numFrameBuffers, sizeof(FrameBuffer *));
+	for (int i = 0; i < _numFrameBuffers; i++) {
+		_frameBuffers[i] = (FrameBuffer *)calloc(1, sizeof(FrameBuffer));
+		if (_display->getDisplayVideoBuffer(&_frameBuffers[i]->buffer, FMT_NV12, _frameWidth, _frameHeight) != S_OK) {
 			log->printf("DecoderVideoLibDCE::getBuffer(): Failed create output buffer\n");
 			goto fail;
 	    }
-	    _frameBuffers[i].index = i;
-	    _frameBuffers[i].locked = false;
+	    _frameBuffers[i]->index = i;
+	    _frameBuffers[i]->locked = false;
 	}
 	_initialized = true;
 
@@ -351,12 +391,19 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 
 fail:
 
-	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
-		if (_frameBuffers[i].buffer.priv) {
-			_display->releaseDisplayVideoBuffer(&_frameBuffers[i].buffer);
-			_frameBuffers[i] = {};
+	if (_frameBuffers) {
+		for (int i = 0; i < _numFrameBuffers; i++) {
+			if (_frameBuffers[i]) {
+				if (_frameBuffers[i]->buffer.priv) {
+					_display->releaseDisplayVideoBuffer(&_frameBuffers[i]->buffer);
+				}
+				free(_frameBuffers[i]);
+			}
 		}
+		free(_frameBuffers);
+		_frameBuffers = nullptr;
 	}
+
 	if (_inputBufBo) {
 		omap_bo_del(_inputBufBo);
 		_inputBufBo = nullptr;
@@ -413,12 +460,19 @@ STATUS DecoderVideoLibDCE::deinit() {
 		return S_OK;
 	}
 
-	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
-		if (_frameBuffers[i].buffer.priv) {
-			_display->releaseDisplayVideoBuffer(&_frameBuffers[i].buffer);
-			_frameBuffers[i] = {};
+	if (_frameBuffers) {
+		for (int i = 0; i < _numFrameBuffers; i++) {
+			if (_frameBuffers[i]) {
+				if (_frameBuffers[i]->buffer.priv) {
+					_display->releaseDisplayVideoBuffer(&_frameBuffers[i]->buffer);
+				}
+				free(_frameBuffers[i]);
+			}
 		}
+		free(_frameBuffers);
+		_frameBuffers = nullptr;
 	}
+
 	if (_inputBufBo) {
 		omap_bo_del(_inputBufBo);
 		_inputBufBo = nullptr;
@@ -614,16 +668,16 @@ DecoderVideoLibDCE::FrameBuffer *DecoderVideoLibDCE::getBuffer() {
 		return nullptr;
 	}
 
-	for (int i = 0; i < IVIDEO2_MAX_IO_BUFFERS; i++) {
-		if (_frameBuffers[i].buffer.priv && !_frameBuffers[i].locked) {
-			if (!_frameBuffers[i].buffer.locked) {
-				_frameBuffers[i].locked = true;
-				return &_frameBuffers[i];
+	for (int i = 0; i < _numFrameBuffers; i++) {
+		if (_frameBuffers[i]->buffer.priv && !_frameBuffers[i]->locked) {
+			if (!_frameBuffers[i]->buffer.locked) {
+				_frameBuffers[i]->locked = true;
+				return _frameBuffers[i];
 			}
 		}
 	}
 
-	log->printf("DecoderVideoLibDCE::init(): No free slots for output buffer\n");
+	log->printf("DecoderVideoLibDCE::getBuffer(): No free slots for output buffer\n");
 	return nullptr;
 }
 
@@ -632,17 +686,17 @@ void DecoderVideoLibDCE::lockBuffer(FrameBuffer *fb) {
 		return;
 	}
 
-	if (_frameBuffers[fb->index].locked) {
-		log->printf("DecoderVideoLibDCE::getBuffer(): Already locked frame buffer at index: %d\n", fb->index);
+	if (_frameBuffers[fb->index]->locked) {
+		log->printf("DecoderVideoLibDCE::lockBuffer(): Already locked frame buffer at index: %d\n", fb->index);
 		return;
 	}
 
-	if (!_frameBuffers[fb->index].buffer.priv) {
-		log->printf("DecoderVideoLibDCE::getBuffer(): Missing frame buffer at index: %d\n", fb->index);
+	if (!_frameBuffers[fb->index]->buffer.priv) {
+		log->printf("DecoderVideoLibDCE::lockBuffer(): Missing frame buffer at index: %d\n", fb->index);
 		return;
 	}
 
-	_frameBuffers[fb->index].locked = true;
+	_frameBuffers[fb->index]->locked = true;
 }
 
 void DecoderVideoLibDCE::unlockBuffer(FrameBuffer *fb) {
@@ -650,17 +704,17 @@ void DecoderVideoLibDCE::unlockBuffer(FrameBuffer *fb) {
 		return;
 	}
 
-	if (!_frameBuffers[fb->index].locked) {
-		log->printf("DecoderVideoLibDCE::getBuffer(): Already unlocked frame buffer at index: %d\n", fb->index);
+	if (!_frameBuffers[fb->index]->locked) {
+		log->printf("DecoderVideoLibDCE::unlockBuffer(): Already unlocked frame buffer at index: %d\n", fb->index);
 		return;
 	}
 
-	if (!_frameBuffers[fb->index].buffer.priv) {
-		log->printf("DecoderVideoLibDCE::getBuffer(): Missing frame buffer at index: %d\n", fb->index);
+	if (!_frameBuffers[fb->index]->buffer.priv) {
+		log->printf("DecoderVideoLibDCE::unlockBuffer(): Missing frame buffer at index: %d\n", fb->index);
 		return;
 	}
 
-	_frameBuffers[fb->index].locked = false;
+	_frameBuffers[fb->index]->locked = false;
 }
 
 } // namespace

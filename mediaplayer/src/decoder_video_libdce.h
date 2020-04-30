@@ -69,7 +69,8 @@ private:
 	void                        *_inputBufPtr;
 	int                         _inputBufSize;
 	omap_bo                     *_inputBufBo;
-	FrameBuffer                 _frameBuffers[IVIDEO2_MAX_IO_BUFFERS]{};
+	int                         _numFrameBuffers;
+	FrameBuffer                 **_frameBuffers;
 	unsigned int 				_codecId;
 
 public:
