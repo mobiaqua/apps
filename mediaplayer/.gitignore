@@ -3,3 +3,5 @@ Debug
 *.o
 *.d
 mediaplayer
+sysroot-native
+sysroot
