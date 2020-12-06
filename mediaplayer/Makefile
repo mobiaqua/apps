@@ -1,21 +1,7 @@
-
-ifndef OE_BASE
-$(error OE_BASE is not set)
-endif
-
-HOST_TYPE := $(shell uname -s)
-
-ifeq ($(HOST_TYPE),Linux)
-HOST_SUFFIX = x86_64-linux
-endif
-
-ifeq ($(HOST_TYPE),Darwin)
-HOST_SUFFIX = x86_64-darwin
-endif
-
-PATH := $(OE_BASE)/build-mobiaqua-tv/tmp/sysroots/$(HOST_SUFFIX)/usr/armv7a-hf/bin:$(PATH)
-
-TOOLCHAIN_PREFIX = arm-linux-gnueabi-
+PATH := $(CURDIR)/sysroot-native/usr/bin/arm-mobiaqua-linux-gnueabi:$(PATH)
+SHELL := env PATH='$(PATH)' /bin/sh
+TOOLCHAIN_PREFIX = arm-mobiaqua-linux-gnueabi-
+SYSROOT := $(CURDIR)/sysroot
 
 CPP = $(TOOLCHAIN_PREFIX)gcc
 CXX = $(TOOLCHAIN_PREFIX)g++
@@ -26,21 +12,26 @@ AS = $(TOOLCHAIN_PREFIX)as
 OBJCOPY = $(TOOLCHAIN_PREFIX)objcopy
 STRIP = $(TOOLCHAIN_PREFIX)strip
 
-CXXFLAGS:= -g3 -O0 -std=c++14 -Isrc
-LDFLAGS:=
+INCS = -I$(SYSROOT)/usr/include/dce -I$(SYSROOT)/usr/include/libdrm -I$(SYSROOT)/usr/include/omap
+CXXFLAGS:= -march=armv7-a -mthumb -mfpu=neon -mfloat-abi=hard -g3 -O0 -std=c++14 -Isrc $(INCS) --sysroot=$(SYSROOT)
+LDFLAGS:= -march=armv7-a -mthumb -mfpu=neon -mfloat-abi=hard --sysroot=$(SYSROOT)
 
 SRCS = $(wildcard src/*.cpp)
-OBJS = $(SRCS:.cpp=.o)
-DEPS = $(SRCS:.cpp=.d)
-LIBS = -lavformat -lavcodec -lswscale -lavutil -lz -lpthread -ldrm -ldrm_omap -ldce -lgbm -legl
+ASRCS = $(wildcard src/*.S)
+OBJS = $(SRCS:.cpp=.o) $(ASRCS:.S=.o)
+DEPS = $(SRCS:.cpp=.d) $(ASRCS:.S=.d)
+LIBS = -lavformat -lavcodec -lswscale -lavutil -lz -lpthread -ldrm -ldrm_omap -ldce -lgbm -legl -lGLESv2
 
 all: mediaplayer
 
 mediaplayer: $(OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
+.S.o:
+	$(CXX) $(CXXFLAGS) -x assembler-with-cpp -c $< -o $@
+
 .cpp.o:
-	$(CXX) $(CXXFLAGS) -MMD -c $< -o $*.o
+	$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
 
 clean:
 	rm -f src/*.o src/*.d
