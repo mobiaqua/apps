@@ -20,7 +20,7 @@ SRCS = $(wildcard src/*.cpp)
 ASRCS = $(wildcard src/*.S)
 OBJS = $(SRCS:.cpp=.o) $(ASRCS:.S=.o)
 DEPS = $(SRCS:.cpp=.d) $(ASRCS:.S=.d)
-LIBS = -lavformat -lavcodec -lswscale -lavutil -lz -lpthread -ldrm -ldrm_omap -ldce -lgbm -legl -lGLESv2
+LIBS = -lavformat -lavcodec -lswscale -lavutil -lz -lpthread -ldrm -ldrm_omap -ldce -lgbm -lEGL -lGLESv2
 
 all: mediaplayer
 
