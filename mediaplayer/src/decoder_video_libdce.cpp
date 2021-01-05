@@ -190,7 +190,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 	_frameHeight = ALIGN2(info.height, 4);
 
 	dce_set_fd(displayHandle.handle);
-	_omapDev = dce_init();
+	_omapDev = (omap_device *)dce_init();
 	if (_omapDev == nullptr) {
 		log->printf("DecoderVideoLibDCE::init(): failed init dce!\n");
 		goto fail;
@@ -367,15 +367,15 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 	_inputBufSize = omap_bo_size(_inputBufBo);
 
 	_codecInputBufs->numBufs = 1;
-	_codecInputBufs->descs[0].memType = XDM_MEMTYPE_BO;
-	_codecInputBufs->descs[0].buf = (XDAS_Int8 *)omap_bo_handle(_inputBufBo);
+	_codecInputBufs->descs[0].memType = XDM_MEMTYPE_RAW;
+	_codecInputBufs->descs[0].buf = (XDAS_Int8 *)omap_bo_dmabuf(_inputBufBo);
 	_codecInputBufs->descs[0].bufSize.bytes = omap_bo_size(_inputBufBo);
+	dce_buf_lock(1, (size_t *)&(_codecInputBufs->descs[0].buf));
 
 	_codecOutputBufs->numBufs = 2;
-	_codecOutputBufs->descs[0].memType = XDM_MEMTYPE_BO;
+	_codecOutputBufs->descs[0].memType = XDM_MEMTYPE_RAW;
 	_codecOutputBufs->descs[0].bufSize.bytes = _frameWidth * _frameHeight;
-	_codecOutputBufs->descs[1].memType = XDM_MEMTYPE_BO_OFFSET;
-	_codecOutputBufs->descs[1].buf = (XDAS_Int8 *)(_frameWidth * _frameHeight);
+	_codecOutputBufs->descs[1].memType = XDM_MEMTYPE_RAW;
 	_codecOutputBufs->descs[1].bufSize.bytes = _frameWidth * (_frameHeight / 2);
 
 	_frameBuffers = (FrameBuffer **)calloc(_numFrameBuffers, sizeof(FrameBuffer *));
@@ -429,6 +429,8 @@ fail:
 		_codecDynParams = nullptr;
 	}
 	if (_codecInputBufs) {
+		dce_buf_unlock(1, (size_t *)&(_codecInputBufs->descs[0].buf));
+		close((int)_codecInputBufs->descs[0].buf);
 		dce_free(_codecInputBufs);
 		_codecInputBufs = nullptr;
 	}
@@ -503,6 +505,8 @@ STATUS DecoderVideoLibDCE::deinit() {
 		_codecDynParams = nullptr;
 	}
 	if (_codecInputBufs) {
+		dce_buf_unlock(1, (size_t *)&(_codecInputBufs->descs[0].buf));
+		close((int)_codecInputBufs->descs[0].buf);
 		dce_free(_codecInputBufs);
 		_codecInputBufs = nullptr;
 	}
@@ -563,7 +567,8 @@ STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, StreamFrame *streamFram
 
 	_codecInputBufs->descs[0].bufSize.bytes = streamFrame->videoFrame.dataSize;
 
-	_codecOutputBufs->descs[0].buf = (XDAS_Int8 *)fb->buffer.boHandle;
+	_codecOutputBufs->descs[0].buf = (XDAS_Int8 *)fb->buffer.dmaBuf;
+	_codecOutputBufs->descs[1].buf = (XDAS_Int8 *)fb->buffer.dmaBuf;
 
 	memset(_codecOutputArgs->outputID, 0, sizeof(_codecOutputArgs->outputID));
 	memset(_codecOutputArgs->freeBufID, 0, sizeof(_codecOutputArgs->freeBufID));
@@ -572,7 +577,10 @@ STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, StreamFrame *streamFram
 	if (codecError != VIDDEC3_EOK) {
 		log->printf("DecoderVideoLibDCE::decodeFrame(): VIDDEC3_process() status: %d, extendedError: %08x\n",
 				codecError, _codecOutputArgs->extendedError);
-		if (XDM_ISFATALERROR(_codecOutputArgs->extendedError)) {
+		if (XDM_ISFATALERROR(_codecOutputArgs->extendedError) ||
+			(codecError == DCE_EXDM_UNSUPPORTED) ||
+			(codecError == DCE_EIPC_CALL_FAIL) ||
+			(codecError == DCE_EINVALID_INPUT)) {
 			unlockBuffer(fb);
 			return S_FAIL;
 		}
@@ -674,6 +682,7 @@ DecoderVideoLibDCE::FrameBuffer *DecoderVideoLibDCE::getBuffer() {
 	for (int i = 0; i < _numFrameBuffers; i++) {
 		if (_frameBuffers[i]->buffer.priv && !_frameBuffers[i]->locked) {
 			if (!_frameBuffers[i]->buffer.locked) {
+				dce_buf_lock(1, (size_t *)&(_frameBuffers[i]->buffer.dmaBuf));
 				_frameBuffers[i]->locked = true;
 				return _frameBuffers[i];
 			}
@@ -699,6 +708,8 @@ void DecoderVideoLibDCE::lockBuffer(FrameBuffer *fb) {
 		return;
 	}
 
+	dce_buf_lock(1, (size_t *)&(_frameBuffers[fb->index]->buffer.dmaBuf));
+
 	_frameBuffers[fb->index]->locked = true;
 }
 
@@ -716,6 +727,8 @@ void DecoderVideoLibDCE::unlockBuffer(FrameBuffer *fb) {
 		log->printf("DecoderVideoLibDCE::unlockBuffer(): Missing frame buffer at index: %d\n", fb->index);
 		return;
 	}
+
+	dce_buf_unlock(1, (size_t *)&(_frameBuffers[fb->index]->buffer.dmaBuf));
 
 	_frameBuffers[fb->index]->locked = false;
 }

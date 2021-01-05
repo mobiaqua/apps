@@ -470,7 +470,7 @@ STATUS DisplayOmapDrm::putImage(VideoFrame *frame, bool skip) {
 		int dstStride[4] = {};
 
 		uint8_t *dst = (uint8_t *)_videoBuffers[_currentVideoBuffer]->ptr;
-		if (frame->pixelfmt == FMT_YUV420P && (ALIGN2(frame->width, 5) == frame->width)) {
+		if (0 && frame->pixelfmt == FMT_YUV420P && (ALIGN2(frame->width, 5) == frame->width)) {
 			srcPtr[0] = frame->data[0];
 			srcPtr[1] = frame->data[1];
 			srcPtr[2] = frame->data[2];
@@ -678,6 +678,7 @@ STATUS DisplayOmapDrm::getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORMAT_
 	videoBuffer->dstY = 0;
 	videoBuffer->dstWidth = width;
 	videoBuffer->dstHeight = height;
+	videoBuffer->dmaBuf = handle->dmaBuf = omap_bo_dmabuf(handle->bo);
 	videoBuffer->size = omap_bo_size(videoBuffer->bo);
 	videoBuffer->ptr = omap_bo_map(videoBuffer->bo);
 	if (videoBuffer->ptr == nullptr) {
@@ -718,7 +719,7 @@ STATUS DisplayOmapDrm::releaseVideoBuffer(VideoBuffer *buffer) {
 
 	drmModeRmFB(_fd, buffer->fbId);
 
-	close(buffer->boHandle);
+	close(buffer->dmaBuf);
 
 	omap_bo_del(buffer->bo);
 

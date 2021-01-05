@@ -53,6 +53,7 @@ private:
 
 	typedef struct {
 		struct omap_bo  *bo;
+		int             dmaBuf;
 		uint32_t        boHandle;
 		uint32_t        fbId;
 		void            *ptr;

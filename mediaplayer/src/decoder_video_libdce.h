@@ -26,12 +26,7 @@
 #include "decoder_video_base.h"
 #include "display_base.h"
 
-#ifdef __cplusplus
-extern "C" {
-	#include <libdce.h>
-	#include <libdrm/omap_drmif.h>
-}
-#endif
+#define xdc_target_types__ gnu/targets/std.h
 #include <xdc/std.h>
 #include <ti/xdais/dm/xdm.h>
 #include <ti/sdo/ce/Engine.h>
@@ -40,6 +35,16 @@ extern "C" {
 #include <ti/sdo/codecs/mpeg4vdec/impeg4vdec.h>
 #include <ti/sdo/codecs/mpeg2vdec/impeg2vdec.h>
 #include <ti/sdo/codecs/vc1vdec/ivc1vdec.h>
+
+#include <inttypes.h>
+#include <unistd.h>
+
+#ifdef __cplusplus
+extern "C" {
+	#include <libdce.h>
+	#include <libdrm/omap_drmif.h>
+}
+#endif
 
 namespace MediaPLayer {
 
