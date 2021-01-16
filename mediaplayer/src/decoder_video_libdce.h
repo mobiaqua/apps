@@ -87,6 +87,7 @@ public:
 	STATUS deinit();
 	void getDemuxerBuffer(StreamFrame *streamFrame);
 	STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame);
+	STATUS flush();
 	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame);
 	FORMAT_VIDEO getVideoFmt(Demuxer * /*demuxer*/) { return FMT_NV12; }
 	int getVideoWidth(Demuxer *demuxer);

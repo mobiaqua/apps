@@ -565,8 +565,10 @@ STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, StreamFrame *streamFram
 	_codecInputArgs->inputID = (XDAS_Int32)fb;
 	_codecInputArgs->numBytes = streamFrame->videoFrame.dataSize;
 
+	_codecInputBufs->numBufs = 1;
 	_codecInputBufs->descs[0].bufSize.bytes = streamFrame->videoFrame.dataSize;
 
+	_codecOutputBufs->numBufs = 2;
 	_codecOutputBufs->descs[0].buf = (XDAS_Int8 *)fb->buffer.dmaBuf;
 	_codecOutputBufs->descs[1].buf = (XDAS_Int8 *)fb->buffer.dmaBuf;
 
@@ -599,6 +601,53 @@ STATUS DecoderVideoLibDCE::decodeFrame(bool &frameReady, StreamFrame *streamFram
 	for (int i = 0; _codecOutputArgs->freeBufID[i]; i++) {
 		unlockBuffer((FrameBuffer *)_codecOutputArgs->freeBufID[i]);
 	}
+
+	return S_OK;
+}
+
+STATUS DecoderVideoLibDCE::flush() {
+	Int32 codecError = VIDDEC3_control(_codecHandle, XDM_FLUSH, _codecDynParams, _codecStatus);
+	if (codecError != VIDDEC3_EOK) {
+		log->printf("DecoderVideoLibDCE::flush(): VIDDEC3_control(XDM_FLUSH) status: %d\n", codecError);
+		return S_FAIL;
+	}
+
+	_codecInputArgs->inputID = 0;
+	_codecInputArgs->numBytes = 0;
+	_codecInputBufs->numBufs = 0;
+	_codecInputBufs->descs[0].bufSize.bytes = 0;
+
+	_codecOutputBufs->numBufs = 0;
+
+	memset(_codecOutputArgs->outputID, 0, sizeof(_codecOutputArgs->outputID));
+	memset(_codecOutputArgs->freeBufID, 0, sizeof(_codecOutputArgs->freeBufID));
+
+	do {
+		codecError = VIDDEC3_process(_codecHandle, _codecInputBufs, _codecOutputBufs, _codecInputArgs, _codecOutputArgs);
+		if (codecError != VIDDEC3_EOK) {
+			log->printf("DecoderVideoLibDCE::flush(): VIDDEC3_process() status: %d, extendedError: %08x\n",
+					codecError, _codecOutputArgs->extendedError);
+			if (XDM_ISFATALERROR(_codecOutputArgs->extendedError) ||
+				(codecError == DCE_EXDM_UNSUPPORTED) ||
+				(codecError == DCE_EIPC_CALL_FAIL) ||
+				(codecError == DCE_EINVALID_INPUT)) {
+				return S_FAIL;
+			}
+		}
+		for (int i = 0; _codecOutputArgs->freeBufID[i]; i++) {
+			unlockBuffer((FrameBuffer *)_codecOutputArgs->freeBufID[i]);
+		}
+	} while (codecError != XDM_EFAIL);
+
+	for (int i = 0; i < _numFrameBuffers; i++) {
+		if (_frameBuffers[i]->buffer.priv && _frameBuffers[i]->locked) {
+			dce_buf_unlock(1, (size_t *)&(_frameBuffers[i]->buffer.dmaBuf));
+			_frameBuffers[i]->locked = 0;
+		}
+	}
+
+	memset(_codecOutputArgs->outputID, 0, sizeof(_codecOutputArgs->outputID));
+	memset(_codecOutputArgs->freeBufID, 0, sizeof(_codecOutputArgs->freeBufID));
 
 	return S_OK;
 }

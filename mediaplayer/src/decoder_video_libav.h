@@ -48,6 +48,7 @@ public:
 	STATUS init(Demuxer *demuxer, Display *display);
 	STATUS deinit();
 	STATUS decodeFrame(bool &frameReady, StreamFrame *streamFrame);
+	STATUS flush() { return S_OK; }
 	void getDemuxerBuffer(StreamFrame *streamFrame);
 	STATUS getVideoStreamOutputFrame(Demuxer *demuxer, VideoFrame *videoFrame);
 	FORMAT_VIDEO getVideoFmt(Demuxer *demuxer);

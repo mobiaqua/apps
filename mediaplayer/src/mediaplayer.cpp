@@ -63,7 +63,7 @@ int Player(int argc, char *argv[]) {
 	DISPLAY_TYPE prefferedDisplay = DISPLAY_OMAPDRM;
 	double deltaFrameTime;
 	double timeFrame = 0;
-	bool firstTimeFrame = true;;
+	bool firstTimeFrame = true;
 
 	if (CreateLogs() == S_FAIL)
 		goto end;
