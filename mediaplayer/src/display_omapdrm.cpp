@@ -608,8 +608,8 @@ STATUS DisplayOmapDrm::flip(bool skip) {
 		log->printf("DisplayOmapDrm::flip(): failed set plane: %s\n", strerror(errno));
 		goto fail;
 	}
-/*		if (++_currentOSDBuffer >= NUM_OSD_FB)
-			_currentOSDBuffer = 0;*/
+	if (++_currentOSDBuffer >= NUM_OSD_FB)
+		_currentOSDBuffer = 0;
 
 	return S_OK;
 
