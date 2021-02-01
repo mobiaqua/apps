@@ -754,7 +754,7 @@ STATUS DisplayOmapDrmEgl::putImage(VideoFrame *frame, bool skip) {
 		int dstStride[4] = {};
 
 		uint8_t *dst = (uint8_t *)renderTexture->mapPtr;
-		if (frame->pixelfmt == FMT_YUV420P && (ALIGN2(frame->width, 5) == frame->width)) {
+		if (0 && frame->pixelfmt == FMT_YUV420P && (ALIGN2(frame->width, 5) == frame->width)) {
 			srcPtr[0] = frame->data[0];
 			srcPtr[1] = frame->data[1];
 			srcPtr[2] = frame->data[2];
