@@ -921,6 +921,7 @@ STATUS DisplayOmapDrmEgl::getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORM
 	handle->bo = renderTexture->bo = omap_bo_new(_omapDevice, fbSize, OMAP_BO_WC);
 	handle->boHandle = omap_bo_handle(handle->bo);
 	renderTexture->mapPtr = omap_bo_map(handle->bo);
+	renderTexture->dmabuf = handle->dmaBuf = omap_bo_dmabuf(renderTexture->bo);
 
 	EGLint attr[] = {
 		EGL_GL_VIDEO_FOURCC_TI,      (EGLint)fourcc,
