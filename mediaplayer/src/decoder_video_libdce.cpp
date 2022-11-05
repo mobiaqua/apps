@@ -358,7 +358,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 		goto fail;
 	}
 
-	_inputBufBo = (omap_bo *)omap_bo_new(_omapDev, _frameWidth * _frameHeight, OMAP_BO_WC);
+	_inputBufBo = (omap_bo *)omap_bo_new(_omapDev, _frameWidth * _frameHeight, OMAP_BO_WC | OMAP_BO_SCANOUT);
 	if (!_inputBufBo) {
 		log->printf("DecoderVideoLibDCE::init(): Failed create input buffer\n");
 		goto fail;
