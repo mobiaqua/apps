@@ -27,6 +27,7 @@
 
 extern "C" {
 #include <libavcodec/avcodec.h>
+#include <libavcodec/bsf.h>
 }
 
 namespace MediaPLayer {
@@ -35,7 +36,7 @@ class DecoderVideoLibAV : public DecoderVideo {
 private:
 
 	AVCodecContext       *_avc;
-	AVCodec              *_avcodec;
+	const AVCodec        *_avcodec;
 	AVFrame              *_avframe;
 	AVBSFContext         *_bsfc;
 

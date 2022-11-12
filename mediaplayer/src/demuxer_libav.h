@@ -27,6 +27,8 @@
 
 extern "C" {
 #include <libavformat/avformat.h>
+#include <libavcodec/bsf.h>
+#include <libavcodec/avcodec.h>
 }
 
 namespace MediaPLayer {
@@ -39,7 +41,7 @@ private:
 	AVStream                   *_audioStream;
 	S64                         _pts;
 	AVPacket                    _packedFrame;
-	StreamVideoInfo 			_videoStreamInfo;
+	StreamVideoInfo             _videoStreamInfo;
 	AVBSFContext               *_bsf;
 	bool                        _firstWMV3frame;
 	uint32_t                    _extradataWMV3;
