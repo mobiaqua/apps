@@ -25,7 +25,6 @@
 #include "basetypes.h"
 #include "decoder_audio_base.h"
 #include "decoder_audio_libav.h"
-#include "decoder_audio_libmpg123.h"
 
 namespace MediaPLayer {
 
@@ -37,8 +36,6 @@ DecoderAudio *CreateDecoderAudio(DECODER_TYPE decoderType) {
 	switch (decoderType) {
 	case DECODER_LIBAV:
 		return new DecoderAudioLibAV();
-	case DECODER_LIBMPG123:
-		return new DecoderAudioLibMPG123();
 	default:
 		return nullptr;
 	}
