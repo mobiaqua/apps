@@ -1,0 +1,9 @@
+Release
+Debug
+*.o
+*.d
+mpv-gui
+sysroot-*
+*project
+/.settings/
+mpv-gui.*
