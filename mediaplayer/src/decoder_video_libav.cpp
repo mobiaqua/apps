@@ -133,7 +133,7 @@ STATUS DecoderVideoLibAV::init(Demuxer *demuxer, Display *display) {
 	return S_OK;
 fail:
 	if (_avc) {
-		avcodec_close(_avc);
+	    avcodec_free_context(&_avc);
 		_avc = nullptr;
 	}
 	return S_FAIL;
@@ -151,7 +151,7 @@ STATUS DecoderVideoLibAV::deinit() {
 		_bsfc = nullptr;
 	}
 
-	avcodec_close(_avc);
+    avcodec_free_context(&_avc);
 	_avc = nullptr;
 
 	return S_OK;
