@@ -1,6 +1,5 @@
 
 Requirements:
-- macOS 10.15 and later with Intel CPU host
-- Latest stable Eclipse IDE for C/C++ Developers
-- GNU ARM Eclipse Plug-in
+- macOS 11+ with Intel CPU host
+- Latest stable Eclipse IDE for Embedded C/C++ Developers
 - MobiAqua Yocto fork target builded

@@ -8,8 +8,8 @@ environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645
 environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/PATH/operation=replace
 environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/PATH/value=/usr/bin\:/bin\:${PWD}/../sysroot-native/usr/bin\:${PWD}/../sysroot-native/usr/bin/arm-mobiaqua-linux-gnueabi
 environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/SYSROOT/delimiter=\:
-environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/SYSROOT/operation=append
-environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/SYSROOT/value=${PWD}/../sysroot
+environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/SYSROOT/operation=replace
+environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/SYSROOT/value=${PWD}/../sysroot-arm
 environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/append=true
 environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.debug.430645195/appendContributed=false
 environment/project/ilg.gnuarmeclipse.managedbuild.cross.config.elf.release.75262219/OE_BASE/delimiter=\:
