@@ -27,10 +27,11 @@
 #ifdef __cplusplus
 extern "C"
 {
-	#include <libdrm/omap_drmif.h>
 	#include <libswscale/swscale.h>
 }
 #endif
+#include <cstdint>
+#include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <drm_fourcc.h>
 
@@ -43,7 +44,7 @@ class DisplayOmapDrm : public Display {
 private:
 
 	typedef struct {
-		struct omap_bo  *bo;
+		uint32_t        handle;
 		uint32_t        fbId;
 		void            *ptr;
 		U32             width, height;
@@ -52,9 +53,8 @@ private:
 	} OSDBuffer;
 
 	typedef struct {
-		struct omap_bo  *bo;
 		int             dmaBuf;
-		uint32_t        boHandle;
+		uint32_t        handle;
 		uint32_t        fbId;
 		void            *ptr;
 		U32             width, height;
@@ -68,7 +68,6 @@ private:
 	} VideoBuffer;
 
 	int                         _fd;
-	struct omap_device          *_omapDevice;
 	drmModeResPtr               _drmResources;
 	drmModePlaneResPtr          _drmPlaneResources;
 	drmModeCrtcPtr              _oldCrtc;
@@ -78,8 +77,10 @@ private:
 	int                         _osdPlaneId;
 	int                         _videoPlaneId;
 
-	struct omap_bo              *_primaryFbBo;
+	uint32_t                    _primaryHandle;
 	uint32_t                    _primaryFbId;
+	void                        *_primaryPtr;
+	U32                         _primarySize;
 	OSDBuffer                   _osdBuffers[NUM_OSD_FB]{};
 	VideoBuffer                 *_videoBuffers[NUM_VIDEO_FB]{};
 

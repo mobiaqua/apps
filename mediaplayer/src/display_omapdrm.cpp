@@ -21,10 +21,13 @@
 
 #include "display_omapdrm.h"
 
+#include <stddef.h>
 #include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <xf86drm.h>
 #include "display_base.h"
 #include "logs.h"
 
@@ -45,10 +48,10 @@ extern "C" void yuv420_to_nv12_open(struct frame_info *dst, struct frame_info *s
 namespace MediaPLayer {
 
 DisplayOmapDrm::DisplayOmapDrm() :
-		_fd(-1), _omapDevice(nullptr), _drmResources(nullptr),
+		_fd(-1), _drmResources(nullptr),
 		_oldCrtc(nullptr),  _drmPlaneResources(nullptr), _connectorId(-1),
 		_crtcId(-1), _osdPlaneId(-1), _videoPlaneId(-1),
-		_primaryFbBo(nullptr), _primaryFbId(0),
+		_primaryHandle(0), _primaryFbId(0), _primarySize(0), _primaryPtr(nullptr),
 		_currentOSDBuffer(), _currentVideoBuffer(0),
 		_scaleCtx(nullptr) {
 }
@@ -79,21 +82,25 @@ STATUS DisplayOmapDrm::deinit() {
 }
 
 STATUS DisplayOmapDrm::internalInit() {
-	_fd = drmOpen("omapdrm", NULL);
+	drmDevice *devices[DRM_MAX_MINOR] = { 0 };
+
+	int card_count = drmGetDevices2(0, devices, SIZE_OF_ARRAY(devices));
+	for (int i = 0; i < card_count; i++) {
+		drmDevice *dev = devices[i];
+		if (!(dev->available_nodes & (1 << DRM_NODE_PRIMARY))) {
+			continue;
+		}
+		_fd = open(dev->nodes[DRM_NODE_PRIMARY], O_RDWR | O_CLOEXEC);
+		_drmResources = drmModeGetResources(_fd);
+		if (!_drmResources) {
+			close(_fd);
+			_fd = -1;
+			continue;
+		}
+		break;
+	}
 	if (_fd < 0) {
-		log->printf("DisplayOmapDrm::internalInit(): Failed open omapdrm, %s\n", strerror(errno));
-		goto fail;
-	}
-
-	_omapDevice = omap_device_new(_fd);
-	if (!_omapDevice) {
-		log->printf("DisplayOmapDrm::internalInit(): Failed create omap device\n");
-		goto fail;
-	}
-
-	_drmResources = drmModeGetResources(_fd);
-	if (!_drmResources) {
-		log->printf("DisplayOmapDrm::internalInit(): Failed get DRM resources, %s\n", strerror(errno));
+		log->printf("DisplayOmapDrm::internalInit(): Failed open, %s\n", strerror(errno));
 		goto fail;
 	}
 
@@ -141,10 +148,6 @@ fail:
 		_drmResources = nullptr;
 	}
 
-	if (_omapDevice != nullptr) {
-		omap_device_del(_omapDevice);
-		_omapDevice = nullptr;
-	}
 	if (_fd != -1) {
 		drmClose(_fd);
 		_fd = -1;
@@ -161,8 +164,14 @@ void DisplayOmapDrm::internalDeinit() {
 		if (_osdBuffers[i].fbId) {
 			drmModeRmFB(_fd, _osdBuffers[i].fbId);
 		}
-		if (_osdBuffers[i].bo) {
-			omap_bo_del(_osdBuffers[i].bo);
+		if (_osdBuffers[i].ptr) {
+			munmap(_osdBuffers[i].ptr, _osdBuffers[i].size);
+		}
+		if (_osdBuffers[i].handle > 0) {
+			struct drm_mode_destroy_dumb dreq = {
+				.handle = _osdBuffers[i].handle,
+			};
+			drmIoctl(_fd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
 		}
 		_osdBuffers[i] = {};
 	}
@@ -172,8 +181,14 @@ void DisplayOmapDrm::internalDeinit() {
 			if (_videoBuffers[i] && _videoBuffers[i]->fbId) {
 				drmModeRmFB(_fd, _videoBuffers[i]->fbId);
 			}
-			if (_videoBuffers[i] && _videoBuffers[i]->bo) {
-				omap_bo_del(_videoBuffers[i]->bo);
+			if (_videoBuffers[i]->ptr) {
+				munmap(_videoBuffers[i]->ptr, _videoBuffers[i]->size);
+			}
+			if (_videoBuffers[i]->handle > 0) {
+				struct drm_mode_destroy_dumb dreq = {
+					.handle = _videoBuffers[i]->handle,
+				};
+				drmIoctl(_fd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
 			}
 			_videoBuffers[i] = {};
 		}
@@ -181,7 +196,7 @@ void DisplayOmapDrm::internalDeinit() {
 
 	if (_oldCrtc) {
 		drmModeSetCrtc(_fd, _oldCrtc->crtc_id, _oldCrtc->buffer_id,
-				_oldCrtc->x, _oldCrtc->y, &_connectorId, 1, &_oldCrtc->mode);
+		               _oldCrtc->x, _oldCrtc->y, &_connectorId, 1, &_oldCrtc->mode);
 		drmModeFreeCrtc(_oldCrtc);
 		_oldCrtc = nullptr;
 	}
@@ -190,9 +205,14 @@ void DisplayOmapDrm::internalDeinit() {
 		drmModeRmFB(_fd, _primaryFbId);
 		_primaryFbId = 0;
 	}
-	if (_primaryFbBo) {
-		omap_bo_del(_primaryFbBo);
-		_primaryFbBo = nullptr;
+	if (_primaryPtr) {
+		munmap(_primaryPtr, _primarySize);
+	}
+	if (_primaryHandle > 0) {
+		struct drm_mode_destroy_dumb dreq = {
+			.handle = _primaryHandle,
+		};
+		drmIoctl(_fd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
 	}
 
 	if (_drmPlaneResources != nullptr)
@@ -200,9 +220,6 @@ void DisplayOmapDrm::internalDeinit() {
 
 	if (_drmResources != nullptr)
 		drmModeFreeResources(_drmResources);
-
-	if (_omapDevice != nullptr)
-		omap_device_del(_omapDevice);
 
 	if (_fd != -1)
 		drmClose(_fd);
@@ -354,13 +371,19 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 	U32 videoBufferSize = 0;
 	int ret;
 
-	_primaryFbBo = omap_bo_new(_omapDevice, _modeInfo.hdisplay * _modeInfo.vdisplay * 4, OMAP_BO_WC | OMAP_BO_SCANOUT);
-	if (!_primaryFbBo) {
-		log->printf("DisplayOmapDrm::configure(): Failed allocate buffer!\n");
+	struct drm_mode_create_dumb creq = {
+		.height = _modeInfo.vdisplay,
+		.width = _modeInfo.hdisplay,
+		.bpp = 32,
+	};
+
+	if (drmIoctl(_fd, DRM_IOCTL_MODE_CREATE_DUMB, &creq) < 0) {
+		log->printf("DisplayOmapDrm::configure(): Cannot create dumb buffer: %s\n", strerror(errno));
 		return S_FAIL;
 	}
-	handles[0] = omap_bo_handle(_primaryFbBo);
-	pitches[0] = _modeInfo.hdisplay * 4;
+
+	_primaryHandle = handles[0] = creq.handle;
+	pitches[0] = creq.pitch;
 	ret = drmModeAddFB2(_fd, _modeInfo.hdisplay, _modeInfo.vdisplay,
 	                	DRM_FORMAT_ARGB8888,
 						handles, pitches, offsets, &_primaryFbId, 0);
@@ -368,9 +391,22 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 		log->printf("DisplayOmapDrm::configure(): failed add video buffer: %s\n", strerror(errno));
 		return S_FAIL;
 	}
-	omap_bo_cpu_prep(_primaryFbBo, OMAP_GEM_WRITE);
-	memset(omap_bo_map(_primaryFbBo), 0, omap_bo_size(_primaryFbBo));
-	omap_bo_cpu_fini(_primaryFbBo, OMAP_GEM_WRITE);
+
+	struct drm_mode_map_dumb mreq = {
+		.handle = creq.handle,
+	};
+	if (drmIoctl(_fd, DRM_IOCTL_MODE_MAP_DUMB, &mreq)) {
+		log->printf("DisplayOmapDrm::configure(): Cannot map dumb buffer: %s\n", strerror(errno));
+		return S_FAIL;
+	}
+
+	_primaryPtr = mmap(0, creq.size, PROT_READ | PROT_WRITE, MAP_SHARED, _fd, mreq.offset);
+	if (_primaryPtr == MAP_FAILED) {
+		log->printf("DisplayOmapDrm::configure(): Cannot map dumb buffer: %s\n", strerror(errno));
+		return S_FAIL;
+	}
+
+	memset(_primaryPtr, 0, creq.size);
 
 	_oldCrtc = drmModeGetCrtc(_fd, _crtcId);
 	ret = drmModeSetCrtc(_fd, _crtcId, _primaryFbId, 0, 0, &_connectorId, 1, &_modeInfo);
@@ -380,32 +416,36 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 	}
 
 	for (int i = 0; i < NUM_OSD_FB; i++) {
-		_osdBuffers[i].bo = omap_bo_new(_omapDevice, _modeInfo.hdisplay * _modeInfo.vdisplay * 4, OMAP_BO_WC | OMAP_BO_SCANOUT);
-		if (!_osdBuffers[i].bo) {
-			log->printf("DisplayOmapDrm::configure(): Failed allocate buffer!\n");
+		if (drmIoctl(_fd, DRM_IOCTL_MODE_CREATE_DUMB, &creq) < 0) {
+			log->printf("DisplayOmapDrm::configure(): Cannot create dumb buffer: %s\n", strerror(errno));
 			return S_FAIL;
 		}
-		handles[0] = omap_bo_handle(_osdBuffers[i].bo);
-		pitches[0] = _modeInfo.hdisplay * 4;
+		_osdBuffers[i].handle = handles[0] = creq.handle;
+		pitches[0] = creq.pitch;
+
 		ret = drmModeAddFB2(_fd, _modeInfo.hdisplay, _modeInfo.vdisplay,
-		                	DRM_FORMAT_ARGB8888,
-							handles, pitches, offsets, &_osdBuffers[i].fbId, 0);
+		                    DRM_FORMAT_ARGB8888,
+		                    handles, pitches, offsets, &_osdBuffers[i].fbId, 0);
 		if (ret < 0) {
 			log->printf("DisplayOmapDrm::configure(): failed add video buffer: %s\n", strerror(errno));
 			return S_FAIL;
 		}
+
+		_osdBuffers[i].ptr = mmap(0, creq.size, PROT_READ | PROT_WRITE, MAP_SHARED, _fd, mreq.offset);
+		if (_osdBuffers[i].ptr == MAP_FAILED) {
+			log->printf("DisplayOmapDrm::configure(): Cannot map dumb buffer: %s\n", strerror(errno));
+			return S_FAIL;
+		}
+
 		_osdBuffers[i].width = _modeInfo.hdisplay;
 		_osdBuffers[i].height = _modeInfo.vdisplay;
 		_osdBuffers[i].stride = pitches[0];
-		_osdBuffers[i].size = omap_bo_size(_osdBuffers[i].bo);
-		_osdBuffers[i].ptr = (U8 *)omap_bo_map(_osdBuffers[i].bo);
+		_osdBuffers[i].size = creq.size;
 		if (_osdBuffers[i].ptr == nullptr) {
 			log->printf("DisplayOmapDrm::internalInit(): Failed get primary frame buffer!");
 			return S_FAIL;
 		}
-		omap_bo_cpu_prep(_osdBuffers[i].bo, OMAP_GEM_WRITE);
 		memset(_osdBuffers[i].ptr, 0, _osdBuffers[i].size);
-		omap_bo_cpu_fini(_osdBuffers[i].bo, OMAP_GEM_WRITE);
 	}
 
 	if (!_hwAccelDecode) {
@@ -427,8 +467,11 @@ fail:
 		if (_osdBuffers[i].fbId) {
 			drmModeRmFB(_fd, _osdBuffers[i].fbId);
 		}
-		if (_osdBuffers[i].bo) {
-			omap_bo_del(_osdBuffers[i].bo);
+		if (_osdBuffers[i].ptr) {
+			munmap(_osdBuffers[i].ptr, _osdBuffers[i].size);
+		}
+		if (_osdBuffers[i].handle > 0) {
+			drmIoctl(_fd, DRM_IOCTL_GEM_CLOSE, &_osdBuffers[i].handle);
 		}
 		_osdBuffers[i] = {};
 	}
@@ -437,8 +480,14 @@ fail:
 		if (_videoBuffers[i] && _videoBuffers[i]->fbId) {
 			drmModeRmFB(_fd, _videoBuffers[i]->fbId);
 		}
-		if (_videoBuffers[i] && _videoBuffers[i]->bo) {
-			omap_bo_del(_videoBuffers[i]->bo);
+		if (_videoBuffers[i]->ptr) {
+			munmap(_videoBuffers[i]->ptr, _videoBuffers[i]->size);
+		}
+		if (_videoBuffers[i]->handle > 0) {
+			struct drm_mode_destroy_dumb dreq = {
+				.handle = _videoBuffers[i]->handle,
+			};
+			drmIoctl(_fd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
 		}
 		_videoBuffers[i] = {};
 	}
@@ -446,8 +495,14 @@ fail:
 	if (_primaryFbId) {
 		drmModeRmFB(_fd, _primaryFbId);
 	}
-	if (_primaryFbBo) {
-		omap_bo_del(_primaryFbBo);
+	if (_primaryPtr) {
+		munmap(_primaryPtr, _primarySize);
+	}
+	if (_primaryHandle > 0) {
+		struct drm_mode_destroy_dumb dreq = {
+			.handle = _primaryHandle,
+		};
+		drmIoctl(_fd, DRM_IOCTL_MODE_DESTROY_DUMB, &dreq);
 	}
 
 	return S_FAIL;
@@ -496,11 +551,9 @@ STATUS DisplayOmapDrm::putImage(VideoFrame *frame, bool skip) {
 			nv12_frame_info.y_stride = frame->width;
 			nv12_frame_info.uv_stride = frame->width;
 
-			yuv420_to_nv12_open(&yuv420_frame_info, &nv12_frame_info);
+//			yuv420_to_nv12_open(&yuv420_frame_info, &nv12_frame_info);
 
-			omap_bo_cpu_prep(_videoBuffers[_currentVideoBuffer]->bo, OMAP_GEM_WRITE);
-			yuv420_to_nv12_convert(dstPtr, srcPtr, NULL, NULL);
-			omap_bo_cpu_fini(_videoBuffers[_currentVideoBuffer]->bo, OMAP_GEM_WRITE);
+//			yuv420_to_nv12_convert(dstPtr, srcPtr, NULL, NULL);
 		} else if (frame->pixelfmt == FMT_YUV420P) {
 			srcPtr[0] = frame->data[0];
 			srcPtr[1] = frame->data[1];
@@ -527,9 +580,7 @@ STATUS DisplayOmapDrm::putImage(VideoFrame *frame, bool skip) {
 					goto fail;
 				}
 			}
-			omap_bo_cpu_prep(_videoBuffers[_currentVideoBuffer]->bo, OMAP_GEM_WRITE);
 			sws_scale(_scaleCtx, srcPtr, srcStride, 0, frame->height, dstPtr, dstStride);
-			omap_bo_cpu_fini(_videoBuffers[_currentVideoBuffer]->bo, OMAP_GEM_WRITE);
 		} else {
 			log->printf("DisplayOmapDrm::putImage(): Not supported format!\n");
 			goto fail;
@@ -579,16 +630,16 @@ STATUS DisplayOmapDrm::flip(bool skip) {
 		return S_FAIL;
 
 	if (!skip && drmModeSetPlane(_fd, _videoPlaneId, _crtcId,
-				_videoBuffers[_currentVideoBuffer]->fbId, 0,
-				_videoBuffers[_currentVideoBuffer]->dstX,
-				_videoBuffers[_currentVideoBuffer]->dstY,
-				_videoBuffers[_currentVideoBuffer]->dstWidth,
-				_videoBuffers[_currentVideoBuffer]->dstHeight,
-				_videoBuffers[_currentVideoBuffer]->srcX << 16,
-				_videoBuffers[_currentVideoBuffer]->srcY << 16,
-				_videoBuffers[_currentVideoBuffer]->srcWidth << 16,
-				_videoBuffers[_currentVideoBuffer]->srcHeight << 16
-				)) {
+	                             _videoBuffers[_currentVideoBuffer]->fbId, 0,
+	                             _videoBuffers[_currentVideoBuffer]->dstX,
+	                             _videoBuffers[_currentVideoBuffer]->dstY,
+	                             _videoBuffers[_currentVideoBuffer]->dstWidth,
+	                             _videoBuffers[_currentVideoBuffer]->dstHeight,
+	                             _videoBuffers[_currentVideoBuffer]->srcX << 16,
+	                             _videoBuffers[_currentVideoBuffer]->srcY << 16,
+	                             _videoBuffers[_currentVideoBuffer]->srcWidth << 16,
+	                             _videoBuffers[_currentVideoBuffer]->srcHeight << 16
+	                            )) {
 		log->printf("DisplayOmapDrm::flip(): failed set plane: %s\n", strerror(errno));
 		goto fail;
 	}
@@ -601,10 +652,10 @@ STATUS DisplayOmapDrm::flip(bool skip) {
 
 
 	if (drmModeSetPlane(_fd, _osdPlaneId, _crtcId,
-				_osdBuffers[_currentOSDBuffer].fbId, 0,
-				0, 0, _modeInfo.hdisplay, _modeInfo.vdisplay,
-				0, 0, _modeInfo.hdisplay << 16, _modeInfo.vdisplay << 16
-				)) {
+	                    _osdBuffers[_currentOSDBuffer].fbId, 0,
+	                    0, 0, _modeInfo.hdisplay, _modeInfo.vdisplay,
+	                    0, 0, _modeInfo.hdisplay << 16, _modeInfo.vdisplay << 16
+	                   )) {
 		log->printf("DisplayOmapDrm::flip(): failed set plane: %s\n", strerror(errno));
 		goto fail;
 	}
@@ -652,21 +703,49 @@ STATUS DisplayOmapDrm::getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORMAT_
 
 	fbSize = width * height * 3 / 2;
 	handle->locked = 0;
-	videoBuffer->bo = handle->bo = omap_bo_new(_omapDevice, fbSize, OMAP_BO_WC | OMAP_BO_SCANOUT);
-	if (!videoBuffer->bo) {
-		log->printf("DisplayOmapDrm::getVideoBuffer(): Failed allocate video buffer!\n");
+
+	struct drm_mode_create_dumb creq = {
+		.height = fbSize,
+		.width = 1,
+		.bpp = 8,
+	};
+
+	if (drmIoctl(_fd, DRM_IOCTL_MODE_CREATE_DUMB, &creq) < 0) {
+		log->printf("DisplayOmapDrm::getVideoBuffer(): Cannot create dumb buffer: %s\n", strerror(errno));
 		return S_FAIL;
 	}
-	handles[0] = videoBuffer->boHandle = handle->boHandle = omap_bo_handle(handle->bo);
+
+	struct drm_mode_map_dumb mreq = {
+		.handle = creq.handle,
+	};
+	if (drmIoctl(_fd, DRM_IOCTL_MODE_MAP_DUMB, &mreq)) {
+		log->printf("DisplayOmapDrm::getVideoBuffer(): Cannot map dumb buffer: %s\n", strerror(errno));
+		return S_FAIL;
+	}
+
+	void *map = mmap(0, creq.size, PROT_READ | PROT_WRITE, MAP_SHARED, _fd, mreq.offset);
+	if (map == MAP_FAILED) {
+		log->printf("DisplayOmapDrm::getVideoBuffer(): Cannot map dumb buffer: %s\n", strerror(errno));
+		return S_FAIL;
+	}
+
+	if (drmPrimeHandleToFD(_fd, creq.handle, DRM_CLOEXEC, &handle->dmaBuf)) {
+		log->printf("DisplayOmapDrm::getVideoBuffer(): Cannot exports a dma-buf: %s\n", strerror(errno));
+		return S_FAIL;
+	}
+
+	handles[0] = creq.handle;
 	pitches[0] = width;
 	handles[1] = handles[0];
 	pitches[1] = pitches[0];
 	offsets[1] = width * height;
 	if (drmModeAddFB2(_fd, width, height,
-			DRM_FORMAT_NV12, handles, pitches, offsets, &videoBuffer->fbId, 0) < 0) {
+	                  DRM_FORMAT_NV12, handles, pitches, offsets, &videoBuffer->fbId, 0) < 0) {
 		log->printf("DisplayOmapDrm::getVideoBuffer(): failed add video buffer: %s\n", strerror(errno));
 		return S_FAIL;
 	}
+
+	videoBuffer->handle = creq.handle;
 	videoBuffer->srcX = 0;
 	videoBuffer->srcY = 0;
 	videoBuffer->srcWidth = width;
@@ -678,14 +757,9 @@ STATUS DisplayOmapDrm::getDisplayVideoBuffer(DisplayVideoBuffer *handle, FORMAT_
 	videoBuffer->dstY = 0;
 	videoBuffer->dstWidth = width;
 	videoBuffer->dstHeight = height;
-	videoBuffer->dmaBuf = handle->dmaBuf = omap_bo_dmabuf(handle->bo);
-	videoBuffer->size = omap_bo_size(videoBuffer->bo);
-	videoBuffer->ptr = omap_bo_map(videoBuffer->bo);
-	if (videoBuffer->ptr == nullptr) {
-		log->printf("DisplayOmapDrm::getVideoBuffer(): Failed get video frame buffer!");
-		return S_FAIL;
-	}
-
+	videoBuffer->dmaBuf = handle->dmaBuf;
+	videoBuffer->size = fbSize;
+	videoBuffer->ptr = map;
 	videoBuffer->db = handle;
 	handle->priv = videoBuffer;
 
@@ -707,7 +781,7 @@ STATUS DisplayOmapDrm::releaseDisplayVideoBuffer(DisplayVideoBuffer *handle) {
 	if (releaseVideoBuffer(videoBuffer) != S_OK)
 		return S_FAIL;
 
-	handle->bo = nullptr;
+	handle->handle = 0;
 	handle->priv = nullptr;
 
 	return S_OK;
@@ -719,9 +793,14 @@ STATUS DisplayOmapDrm::releaseVideoBuffer(VideoBuffer *buffer) {
 
 	drmModeRmFB(_fd, buffer->fbId);
 
+	munmap(buffer->ptr, buffer->size);
+
 	close(buffer->dmaBuf);
 
-	omap_bo_del(buffer->bo);
+	struct drm_gem_close req = {
+		.handle = buffer->handle,
+	};
+	drmIoctl(_fd, DRM_IOCTL_MODE_DESTROY_DUMB, &req);
 
 	delete buffer;
 

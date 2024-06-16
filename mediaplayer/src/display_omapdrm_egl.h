@@ -26,10 +26,11 @@
 #include "basetypes.h"
 #ifdef __cplusplus
 extern "C" {
-	#include <libdrm/omap_drmif.h>
 	#include <libswscale/swscale.h>
 }
 #endif
+#include <cstdint>
+#include <xf86drm.h>
 #include <xf86drmMode.h>
 #include <drm_fourcc.h>
 #include <gbm.h>
@@ -44,22 +45,22 @@ class DisplayOmapDrmEgl : public Display {
 private:
 
 	typedef struct {
-		int         fd;
-		gbm_bo 		*gbmBo;
-		uint32_t	fbId;
+		int            fd;
+		gbm_bo         *gbmBo;
+		uint32_t       fbId;
 	} DrmFb;
 
 	typedef struct {
-		struct omap_bo *bo;
+		uint32_t       handle;
 		int            dmabuf;
 		void           *mapPtr;
+		uint32_t       mapSize;
 		EGLImageKHR    image;
 		GLuint         glTexture;
 		DisplayVideoBuffer *db;
 	} RenderTexture;
 
 	int                         _fd;
-	omap_device                 *_omapDevice;
 	gbm_device                  *_gbmDevice;
 	gbm_surface                 *_gbmSurface;
 
@@ -71,20 +72,22 @@ private:
 	uint32_t                    _crtcId;
 	int                         _planeId;
 
-	struct omap_bo              *_primaryFbBo;
+	uint32_t                    _primaryHandle;
 	uint32_t                    _primaryFbId;
+	void                        *_primaryPtr;
+	U32                         _primarySize;
 
-	EGLDisplay 					_eglDisplay;
-	EGLSurface					_eglSurface;
-	EGLConfig 					_eglConfig;
-	EGLContext					_eglContext;
+	EGLDisplay                  _eglDisplay;
+	EGLSurface                  _eglSurface;
+	EGLConfig                   _eglConfig;
+	EGLContext                  _eglContext;
 	PFNEGLCREATEIMAGEKHRPROC    eglCreateImageKHR;
 	PFNEGLDESTROYIMAGEKHRPROC   eglDestroyImageKHR;
 	PFNGLEGLIMAGETARGETTEXTURE2DOESPROC glEGLImageTargetTexture2DOES;
 	GLuint                      _vertexShader;
 	GLuint                      _fragmentShader;
 	GLuint                      _glProgram;
-	RenderTexture				*_renderTexture;
+	RenderTexture               *_renderTexture;
 	U32                         _fbWidth, _fbHeight;
 
 	SwsContext                  *_scaleCtx;

@@ -12,7 +12,7 @@ AS = $(TOOLCHAIN_PREFIX)as
 OBJCOPY = $(TOOLCHAIN_PREFIX)objcopy
 STRIP = $(TOOLCHAIN_PREFIX)strip
 
-INCS = -I$(SYSROOT)/usr/include/dce -I$(SYSROOT)/usr/include/libdrm -I$(SYSROOT)/usr/include/omap
+INCS = -I$(SYSROOT)/usr/include/dce -I$(SYSROOT)/usr/include/libdrm
 CXXFLAGS:= -march=armv7-a -mthumb -mfpu=neon -mfloat-abi=hard -g3 -O0 -std=c++14 -Isrc $(INCS) --sysroot=$(SYSROOT)
 LDFLAGS:= -march=armv7-a -mthumb -mfpu=neon -mfloat-abi=hard --sysroot=$(SYSROOT)
 
@@ -20,7 +20,7 @@ SRCS = $(wildcard src/*.cpp)
 ASRCS = $(wildcard src/*.S)
 OBJS = $(SRCS:.cpp=.o) $(ASRCS:.S=.o)
 DEPS = $(SRCS:.cpp=.d) $(ASRCS:.S=.d)
-LIBS = -lavformat -lavcodec -lswscale -lavutil -lz -lpthread -ldrm -ldrm_omap -ldce -lgbm -lEGL -lGLESv2
+LIBS = -lavformat -lavcodec -lswscale -lavutil -lz -lpthread -ldrm -ldce -lgbm -lEGL -lGLESv2
 
 all: mediaplayer
 
