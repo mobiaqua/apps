@@ -25,14 +25,15 @@
 #include "display_base.h"
 #include <string.h>
 #include <stdlib.h>
+#include <cerrno>
 
 namespace MediaPLayer {
 
 DecoderVideoLibDCE::DecoderVideoLibDCE() :
 		_display(nullptr), _codecEngine(nullptr), _codecHandle(nullptr), _codecParams(nullptr), _codecDynParams(nullptr),
 		_codecStatus(0), _codecInputBufs(nullptr), _codecOutputBufs(nullptr),
-		_codecInputArgs(nullptr), _codecOutputArgs(nullptr), _omapDev(nullptr),
-		_frameWidth(0), _frameHeight(0),_inputBufPtr(nullptr), _inputBufSize(0), _inputBufBo(nullptr),
+		_codecInputArgs(nullptr), _codecOutputArgs(nullptr), _drmFd(0),
+		_frameWidth(0), _frameHeight(0),_inputBufPtr(nullptr), _inputBufSize(0), _inputBufHandle(0),
 		_numFrameBuffers(0), _frameBuffers(nullptr),
 		_codecId(CODEC_ID_NONE) {
 	_bpp = 2;
@@ -113,6 +114,9 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 	DisplayHandle displayHandle;
 	Int32 codecError;
 	int dpbSizeInFrames = 0;
+	struct drm_mode_create_dumb creq;
+	struct drm_mode_map_dumb mreq;
+	struct drm_prime_handle dreq;
 
 	_display = display;
 	if (display->getHandle(&displayHandle) != S_OK) {
@@ -189,12 +193,7 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 	_frameWidth  = ALIGN2(info.width, 4);
 	_frameHeight = ALIGN2(info.height, 4);
 
-	dce_set_fd(displayHandle.handle);
-	_omapDev = (omap_device *)dce_init();
-	if (_omapDev == nullptr) {
-		log->printf("DecoderVideoLibDCE::init(): failed init dce!\n");
-		goto fail;
-	}
+	dce_init(displayHandle.handle);
 
 	_codecEngine = Engine_open((String)"ivahd_vidsvr", nullptr, &engineError);
 	if (!_codecEngine) {
@@ -358,18 +357,41 @@ STATUS DecoderVideoLibDCE::init(Demuxer *demuxer, Display *display) {
 		goto fail;
 	}
 
-	_inputBufBo = (omap_bo *)omap_bo_new(_omapDev, _frameWidth * _frameHeight, OMAP_BO_WC | OMAP_BO_SCANOUT);
-	if (!_inputBufBo) {
+	creq.height = (uint32_t)_frameHeight;
+	creq.width = (uint32_t)_frameWidth;
+	creq.bpp = 8;
+	if (drmIoctl(displayHandle.handle, DRM_IOCTL_MODE_CREATE_DUMB, &creq) < 0) {
 		log->printf("DecoderVideoLibDCE::init(): Failed create input buffer\n");
 		goto fail;
 	}
-	_inputBufPtr = omap_bo_map(_inputBufBo);
-	_inputBufSize = omap_bo_size(_inputBufBo);
+
+	_inputBufHandle = creq.handle;
+
+	mreq.handle = creq.handle;
+	if (drmIoctl(displayHandle.handle, DRM_IOCTL_MODE_MAP_DUMB, &mreq)) {
+		log->printf("DisplayOmapDrm::init(): Cannot map dumb buffer: %s\n", strerror(errno));
+		goto fail;
+	}
+
+	_inputBufPtr = mmap(0, creq.size, PROT_READ | PROT_WRITE, MAP_SHARED, displayHandle.handle, mreq.offset);
+	if (_inputBufPtr == MAP_FAILED) {
+		log->printf("DisplayOmapDrm::init(): Cannot map dumb buffer: %s\n", strerror(errno));
+		goto fail;
+	}
+
+	_inputBufSize = creq.size;
+
+	dreq.handle = _inputBufHandle;
+	dreq.flags = DRM_CLOEXEC;
+	if (drmIoctl(displayHandle.handle, DRM_IOCTL_PRIME_HANDLE_TO_FD, &dreq) < 0) {
+		log->printf("DisplayOmapDrm::init(): Cannot DMA buffer: %s\n", strerror(errno));
+		goto fail;
+	}
 
 	_codecInputBufs->numBufs = 1;
 	_codecInputBufs->descs[0].memType = XDM_MEMTYPE_RAW;
-	_codecInputBufs->descs[0].buf = (XDAS_Int8 *)omap_bo_dmabuf(_inputBufBo);
-	_codecInputBufs->descs[0].bufSize.bytes = omap_bo_size(_inputBufBo);
+	_codecInputBufs->descs[0].buf = (XDAS_Int8 *)dreq.fd;
+	_codecInputBufs->descs[0].bufSize.bytes = creq.size;
 	dce_buf_lock(1, (size_t *)&(_codecInputBufs->descs[0].buf));
 
 	_codecOutputBufs->numBufs = 2;
@@ -407,10 +429,6 @@ fail:
 		_frameBuffers = nullptr;
 	}
 
-	if (_inputBufBo) {
-		omap_bo_del(_inputBufBo);
-		_inputBufBo = nullptr;
-	}
 	if (_codecHandle) {
 		VIDDEC3_delete(_codecHandle);
 		_codecHandle = nullptr;
@@ -430,9 +448,17 @@ fail:
 	}
 	if (_codecInputBufs) {
 		dce_buf_unlock(1, (size_t *)&(_codecInputBufs->descs[0].buf));
+		munmap(_inputBufPtr, _inputBufSize);
 		close((int)_codecInputBufs->descs[0].buf);
 		dce_free(_codecInputBufs);
 		_codecInputBufs = nullptr;
+	}
+	if (_inputBufHandle > 0) {
+		struct drm_gem_close req = {
+			.handle = _inputBufHandle,
+		};
+		drmIoctl(_drmFd, DRM_IOCTL_MODE_DESTROY_DUMB, &req);
+		_inputBufHandle = 0;
 	}
 	if (_codecOutputBufs) {
 		dce_free(_codecOutputBufs);
@@ -452,10 +478,7 @@ fail:
 		_codecEngine = nullptr;
 	}
 
-	if (_omapDev) {
-		dce_deinit(_omapDev);
-		_omapDev = nullptr;
-	}
+	dce_deinit();
 
 	return S_FAIL;
 }
@@ -476,11 +499,6 @@ STATUS DecoderVideoLibDCE::deinit() {
 		}
 		free(_frameBuffers);
 		_frameBuffers = nullptr;
-	}
-
-	if (_inputBufBo) {
-		omap_bo_del(_inputBufBo);
-		_inputBufBo = nullptr;
 	}
 
 	if (_codecHandle && _codecDynParams && _codecParams) {
@@ -506,9 +524,17 @@ STATUS DecoderVideoLibDCE::deinit() {
 	}
 	if (_codecInputBufs) {
 		dce_buf_unlock(1, (size_t *)&(_codecInputBufs->descs[0].buf));
+        munmap(_inputBufPtr, _inputBufSize);
 		close((int)_codecInputBufs->descs[0].buf);
 		dce_free(_codecInputBufs);
 		_codecInputBufs = nullptr;
+	}
+	if (_inputBufHandle > 0) {
+		struct drm_gem_close req = {
+			.handle = _inputBufHandle,
+		};
+		drmIoctl(_drmFd, DRM_IOCTL_MODE_DESTROY_DUMB, &req);
+		_inputBufHandle = 0;
 	}
 	if (_codecOutputBufs) {
 		dce_free(_codecOutputBufs);
@@ -528,10 +554,7 @@ STATUS DecoderVideoLibDCE::deinit() {
 		_codecEngine = nullptr;
 	}
 
-	if (_omapDev) {
-		dce_deinit(_omapDev);
-		_omapDev = nullptr;
-	}
+	dce_deinit();
 
 	_initialized = false;
 

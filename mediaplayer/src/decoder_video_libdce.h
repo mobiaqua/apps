@@ -37,12 +37,16 @@
 #include <ti/sdo/codecs/vc1vdec/ivc1vdec.h>
 
 #include <inttypes.h>
+#include <cstdint>
 #include <unistd.h>
+#include <fcntl.h>
+#include <drm/drm.h>
+#include <xf86drm.h>
+#include <sys/mman.h>
 
 #ifdef __cplusplus
 extern "C" {
 	#include <libdce.h>
-	#include <libdrm/omap_drmif.h>
 }
 #endif
 
@@ -54,29 +58,29 @@ private:
 
 	typedef struct {
 		DisplayVideoBuffer      buffer;
-		int						index;
+		int                     index;
 		bool                    locked;
 	} FrameBuffer;
 
-	Display                     *_display;
-	Engine_Handle              	_codecEngine;
-	VIDDEC3_Handle             	_codecHandle;
-	VIDDEC3_Params 				*_codecParams;
-	VIDDEC3_DynamicParams 		*_codecDynParams;
-	VIDDEC3_Status				*_codecStatus;
-	XDM2_BufDesc				*_codecInputBufs;
-	XDM2_BufDesc				*_codecOutputBufs;
-	VIDDEC3_InArgs				*_codecInputArgs;
-	VIDDEC3_OutArgs				*_codecOutputArgs;
-	omap_device                 *_omapDev;
-	int           				_frameWidth;
-	int 						_frameHeight;
-	void                        *_inputBufPtr;
-	int                         _inputBufSize;
-	omap_bo                     *_inputBufBo;
-	int                         _numFrameBuffers;
-	FrameBuffer                 **_frameBuffers;
-	unsigned int 				_codecId;
+	Display                    *_display;
+	Engine_Handle              _codecEngine;
+	VIDDEC3_Handle             _codecHandle;
+	VIDDEC3_Params             *_codecParams;
+	VIDDEC3_DynamicParams      *_codecDynParams;
+	VIDDEC3_Status             *_codecStatus;
+	XDM2_BufDesc               *_codecInputBufs;
+	XDM2_BufDesc               *_codecOutputBufs;
+	VIDDEC3_InArgs             *_codecInputArgs;
+	VIDDEC3_OutArgs            *_codecOutputArgs;
+	int                        _drmFd;
+	int                        _frameWidth;
+	int                        _frameHeight;
+	void                       *_inputBufPtr;
+	int                        _inputBufSize;
+	uint32_t                   _inputBufHandle;
+	int                        _numFrameBuffers;
+	FrameBuffer                **_frameBuffers;
+	unsigned int               _codecId;
 
 public:
 	DecoderVideoLibDCE();

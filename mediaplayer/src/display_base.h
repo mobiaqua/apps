@@ -36,8 +36,7 @@ typedef struct {
 
 typedef struct {
 	void           *priv;
-	struct omap_bo *bo;
-	U32            boHandle;
+	U32            handle;
 	int            dmaBuf;
 	bool           locked;
 } DisplayVideoBuffer;
