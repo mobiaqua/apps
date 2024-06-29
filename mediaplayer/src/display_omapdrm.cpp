@@ -289,39 +289,58 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 
 	drmModeFreeConnector(connector);
 
+    if (drmSetClientCap(_fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1)) {
+        log->printf("DisplayOmapDrm::configure(): Failed to set universal planes capability!\n");
+        return S_FAIL;
+    }
 	_drmPlaneResources = drmModeGetPlaneResources(_fd);
 	if (!_drmPlaneResources) {
 		log->printf("DisplayOmapDrm::configure(): Failed to plane resources!\n");
 		return S_FAIL;
 	}
 
-	_osdPlaneId = -1;
+	int crtcIndex = -1;
+    for (int i = 0; i < _drmResources->count_crtcs; i++) {
+        if (_drmResources->crtcs[i] == _crtcId) {
+            crtcIndex = i;
+            break;
+        }
+    }
+
+    _osdPlaneId = -1;
+    _videoPlaneId = -1;
 	for (int i = 0; i < _drmPlaneResources->count_planes; i++) {
 		drmModePlane *plane = drmModeGetPlane(_fd, _drmPlaneResources->planes[i]);
 		if (plane == nullptr)
 			continue;
-		if (plane->crtc_id == 0) {
-			_osdPlaneId = plane->plane_id;
-			drmModeFreePlane(plane);
-			break;
+        uint32_t possible_crtcs = plane->possible_crtcs;
+        if (possible_crtcs & (1 << crtcIndex)) {
+            drmModeObjectPropertiesPtr props = drmModeObjectGetProperties(_fd, plane->plane_id, DRM_MODE_OBJECT_PLANE);
+            if (!props) {
+                log->printf("DisplayOmapDrm::configure(): Failed to find properties for plane!\n");
+                drmModeFreePlane(plane);
+                break;
+            }
+            for (int i = 0; i < props->count_props; i++) {
+                drmModePropertyPtr prop = drmModeGetProperty(_fd, props->props[i]);
+                if (prop != nullptr && strcmp(prop->name, "type") == 0) {
+                    uint64_t value = props->prop_values[i];
+                    if (_osdPlaneId == -1 && value == DRM_PLANE_TYPE_PRIMARY) {
+                        _osdPlaneId = plane->plane_id;
+                    }
+                    if (_videoPlaneId == -1 && value == DRM_PLANE_TYPE_OVERLAY) {
+                        _videoPlaneId = plane->plane_id;
+                    }
+                }
+                drmModeFreeProperty(prop);
+            }
+            drmModeFreeObjectProperties(props);
 		}
 		drmModeFreePlane(plane);
 	}
 	if (_osdPlaneId == -1) {
 		log->printf("DisplayOmapDrm::configure(): Failed to find plane!\n");
 		return S_FAIL;
-	}
-	_videoPlaneId = -1;
-	for (int i = 0; i < _drmPlaneResources->count_planes; i++) {
-		drmModePlane *plane = drmModeGetPlane(_fd, _drmPlaneResources->planes[i]);
-		if (plane == nullptr)
-			continue;
-		if (plane->crtc_id == 0 && plane->plane_id != _osdPlaneId) {
-			_videoPlaneId = plane->plane_id;
-			drmModeFreePlane(plane);
-			break;
-		}
-		drmModeFreePlane(plane);
 	}
 	if (_videoPlaneId == -1) {
 		log->printf("DisplayOmapDrm::configure(): Failed to find plane!\n");
@@ -336,8 +355,7 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 	for (int i = 0; i < props->count_props; i++) {
 		drmModePropertyPtr prop = drmModeGetProperty(_fd, props->props[i]);
 		if (prop != nullptr && strcmp(prop->name, "zorder") == 0 && drm_property_type_is(prop, DRM_MODE_PROP_RANGE)) {
-			uint64_t value = props->prop_values[i];
-			if (drmModeObjectSetProperty(_fd, _osdPlaneId, DRM_MODE_OBJECT_PLANE, props->props[i], 1)) {
+			if (drmModeObjectSetProperty(_fd, _osdPlaneId, DRM_MODE_OBJECT_PLANE, prop->prop_id, 1)) {
 				log->printf("DisplayOmapDrm::configure(): Failed to set zorder property for plane!\n");
 				return S_FAIL;
 			}
@@ -354,8 +372,7 @@ STATUS DisplayOmapDrm::configure(FORMAT_VIDEO videoFmt, int videoFps, int videoW
 	for (int i = 0; i < props->count_props; i++) {
 		drmModePropertyPtr prop = drmModeGetProperty(_fd, props->props[i]);
 		if (prop != nullptr && strcmp(prop->name, "zorder") == 0 && drm_property_type_is(prop, DRM_MODE_PROP_RANGE)) {
-			uint64_t value = props->prop_values[i];
-			if (drmModeObjectSetProperty(_fd, _videoPlaneId, DRM_MODE_OBJECT_PLANE, props->props[i], 0)) {
+			if (drmModeObjectSetProperty(_fd, _videoPlaneId, DRM_MODE_OBJECT_PLANE, prop->prop_id, 0)) {
 				log->printf("DisplayOmapDrm::configure(): Failed to set zorder property for plane!\n");
 				return S_FAIL;
 			}
